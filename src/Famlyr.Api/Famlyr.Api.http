@@ -1,6 +1,6 @@
-@Famlyr.Api_HostAddress = http://localhost:5240
+@Api_HostAddress = http://localhost:5240
 
-GET {{Famlyr.Api_HostAddress}}/weatherforecast/
+GET {{Api_HostAddress}}/api/familytree/00000000-0000-0000-0000-000000000001
 Accept: application/json
 
 ###
