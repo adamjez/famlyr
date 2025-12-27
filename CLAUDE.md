@@ -75,10 +75,30 @@ Famlyr.Web (SvelteKit)
 
 ## Frontend (Famlyr.Web)
 
-- **SvelteKit 5** with runes syntax (`$state`, `$props`, `{@render}`)
+- **SvelteKit 5** with runes syntax (`$state`, `$derived`, `$props`, `$effect`)
 - **Tailwind CSS v4** via `@tailwindcss/vite` plugin
+- **Pixi.js 8** for WebGL-based tree visualization (60fps rendering)
 - **OpenTelemetry** for traces and metrics via `instrumentation.server.ts`
 - **Winston** for structured logging with OpenTelemetry transport
+
+### Tree Visualization Components
+
+```
+src/lib/
+├── components/tree/
+│   ├── TreeViewer.svelte         # Main container with fullscreen support
+│   ├── TreeCanvas.svelte         # Pixi.js canvas with pan/zoom
+│   ├── TreeControls.svelte       # Zoom, reset, fullscreen buttons
+│   └── PersonDetailPanel.svelte  # Slide-in panel with person details
+├── services/tree/
+│   ├── layoutEngine.ts           # Sugiyama-style tree layout algorithm
+│   └── treeRenderer.ts           # Pixi.js rendering and interaction
+├── stores/
+│   └── treeView.svelte.ts        # Reactive state with Svelte 5 runes
+└── types/
+    ├── api.ts                    # API response types
+    └── tree.ts                   # Tree visualization types
+```
 
 ### Logging
 

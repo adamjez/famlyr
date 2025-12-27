@@ -12,10 +12,17 @@
     <h1>Family Tree</h1>
 
     <div class="card">
-        <h2 class="text-2xl">{data.tree.name}</h2>
-        {#if data.tree.description}
-            <p class="mt-3 text-neutral-600">{data.tree.description}</p>
-        {/if}
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-2xl">{data.tree.name}</h2>
+                {#if data.tree.description}
+                    <p class="mt-3 text-neutral-600">{data.tree.description}</p>
+                {/if}
+            </div>
+            <a href="/tree/{data.tree.id}" class="btn btn-primary">View Tree</a>
+        </div>
+
+        <p class="mt-4 text-sm text-neutral-500">{data.tree.persons.length} persons</p>
 
         <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {#each data.tree.persons as person}

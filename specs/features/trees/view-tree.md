@@ -1,6 +1,6 @@
 # Feature: View Family Tree
 
-> **Status:** Draft
+> **Status:** Phase 1 Implemented
 > **GitHub Issue:** #TBD
 > **Author:** Adam Jež
 > **Last Updated:** 2025-12-27
@@ -460,12 +460,16 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 
 ## Implementation Phases
 
-### Phase 1: Core Rendering (MVP)
-- Set up Pixi.js in TreeCanvas component
-- Implement basic layered layout algorithm
-- Render nodes with names at single LOD
-- Mouse pan and zoom
-- Click to select person
+### Phase 1: Core Rendering (MVP) ✅ DONE
+- [x] Set up Pixi.js in TreeCanvas component
+- [x] Implement basic layered layout algorithm (Sugiyama-style)
+- [x] Render nodes with names and gender colors
+- [x] Mouse pan (drag) and zoom (scroll wheel)
+- [x] Click to select person with detail panel
+- [x] Relationship highlighting (parents green, children orange)
+- [x] Zoom controls (+, -, reset)
+- [x] Fullscreen mode
+- [x] Clickable parent/child lists in detail panel
 
 ### Phase 2: Mobile & Touch
 - Pinch-to-zoom gesture
