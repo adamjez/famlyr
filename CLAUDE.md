@@ -51,7 +51,7 @@ dotnet ef database update --project src/Famlyr.Infrastructure --startup-project 
 - Use `Guid.CreateVersion7()` for generating new IDs
 - Entity configuration via Fluent API in `Infrastructure/Data/Configurations/`
 - Controllers in `Api/Controllers/` with `[ApiController]` attribute
-- DTOs in `Api/DTOs/` - separate Request and Response DTOs
+- Models in `Api/Models/` - separate Request and Response models
 
 ## Project References
 
@@ -77,7 +77,7 @@ Feature specs are written in markdown before implementation.
 - Template: `specs/_template.md`
 - Features: `specs/features/`
 
-## Plan File
+## Plans
 
-Detailed implementation plan available at:
-`.claude/plans/polished-seeking-boole.md`
+Implementation plans are stored in `.claude/plans/`:
+- Current: `.claude/plans/v0.1-implementation.md`
