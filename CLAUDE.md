@@ -62,6 +62,21 @@ Famlyr.Api
 └── Famlyr.ServiceDefaults
 ```
 
+## Specification-Driven Workflow
+
+Feature specs are written in markdown before implementation.
+
+### Workflow
+1. Write spec in `specs/features/<area>/<feature>.md`
+2. Create linked GitHub issue
+3. Get spec approved
+4. Implement following the spec
+5. Update spec status to "Implemented"
+
+### Spec Location
+- Template: `specs/_template.md`
+- Features: `specs/features/`
+
 ## Plan File
 
 Detailed implementation plan available at:
