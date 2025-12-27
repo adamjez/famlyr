@@ -11,6 +11,7 @@ Famlyr is a family tree application for creating, managing, and visualizing line
 - **Clean Architecture** with 3 layers: Core (domain), Infrastructure (data), Api (presentation)
 - **Aspire** orchestrates all services (API, PostgreSQL, frontend)
 - **UUIDv7** for all entity IDs (`Guid.CreateVersion7()`)
+- **Frontend**: SvelteKit 5 with TypeScript and Tailwind CSS v4
 
 ## Key Design Decisions
 
@@ -67,6 +68,26 @@ Famlyr.Api
 ├── Famlyr.Infrastructure
 │   └── Famlyr.Core
 └── Famlyr.ServiceDefaults
+
+Famlyr.Web (SvelteKit)
+└── Calls Famlyr.Api via PUBLIC_API_URL
+```
+
+## Frontend (Famlyr.Web)
+
+- **SvelteKit 5** with runes syntax (`$state`, `$props`, `{@render}`)
+- **Tailwind CSS v4** via `@tailwindcss/vite` plugin
+- **OpenTelemetry** for traces and metrics via `instrumentation.server.ts`
+- **Winston** for structured logging with OpenTelemetry transport
+
+### Logging
+
+Use the `createLogger` factory for structured logs that flow to Aspire:
+
+```typescript
+import { createLogger } from '$lib/logger';
+const logger = createLogger('my-category');
+logger.info('Message here');
 ```
 
 ## Specification-Driven Workflow
