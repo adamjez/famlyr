@@ -48,10 +48,17 @@ dotnet ef database update --project src/Famlyr.Infrastructure --startup-project 
 
 ## Code Conventions
 
+- Avoid excessive comments - code should be self-explanatory; don't add section divider comments
 - Use `Guid.CreateVersion7()` for generating new IDs
 - Entity configuration via Fluent API in `Infrastructure/Data/Configurations/`
 - Controllers in `Api/Controllers/` with `[ApiController]` attribute
 - Models in `Api/Models/` - separate Request and Response models
+
+### Code Quality
+
+- `.editorconfig` defines code style rules (formatting, naming, C# conventions)
+- `EnableNETAnalyzers` and `EnforceCodeStyleInBuild` are enabled in `Directory.Build.props`
+- `AnalysisLevel` set to `latest-recommended`
 
 ## Project References
 

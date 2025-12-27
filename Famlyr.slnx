@@ -6,4 +6,9 @@
     <Project Path="src/Famlyr.Infrastructure/Famlyr.Infrastructure.csproj" />
     <Project Path="src/Famlyr.ServiceDefaults/Famlyr.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/_root/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
 </Solution>

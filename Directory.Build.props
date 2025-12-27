@@ -6,4 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+  </PropertyGroup>
+
 </Project>
