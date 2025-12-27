@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Famlyr.Api/Famlyr.Api.csproj" />
+    <Project Path="src/Famlyr.AppHost/Famlyr.AppHost.csproj" />
+    <Project Path="src/Famlyr.Core/Famlyr.Core.csproj" />
+    <Project Path="src/Famlyr.Infrastructure/Famlyr.Infrastructure.csproj" />
+    <Project Path="src/Famlyr.ServiceDefaults/Famlyr.ServiceDefaults.csproj" />
+  </Folder>
+</Solution>

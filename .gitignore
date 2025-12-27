@@ -58,3 +58,6 @@ nunit-*.xml
 
 # Claude
 settings.local.json
+
+# JetBrains Rider
+.idea/
