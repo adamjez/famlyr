@@ -1,8 +1,11 @@
 using System.Text.Json.Serialization;
+using Famlyr.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+builder.AddNpgsqlDbContext<FamlyrDbContext>("famlyrdb");
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

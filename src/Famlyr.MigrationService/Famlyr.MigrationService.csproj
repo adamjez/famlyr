@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Famlyr.Infrastructure\Famlyr.Infrastructure.csproj" />
+    <ProjectReference Include="..\Famlyr.ServiceDefaults\Famlyr.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

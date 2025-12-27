@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Famlyr.Api\Famlyr.Api.csproj" />
+    <ProjectReference Include="..\Famlyr.MigrationService\Famlyr.MigrationService.csproj" />
   </ItemGroup>
 
 </Project>
