@@ -5,6 +5,9 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
 
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing.AddSource(Worker.ActivitySourceName));
+
 builder.AddNpgsqlDbContext<FamlyrDbContext>("famlyrdb");
 
 builder.Services.AddHostedService<Worker>();

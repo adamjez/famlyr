@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Famlyr.Infrastructure.Data;
 using Famlyr.Infrastructure.Data.Seeding;
 using Microsoft.EntityFrameworkCore;
@@ -9,19 +10,33 @@ public class Worker(
     IHostApplicationLifetime hostApplicationLifetime,
     ILogger<Worker> logger) : BackgroundService
 {
+    public const string ActivitySourceName = "Migrations";
+    private static readonly ActivitySource activitySource = new(ActivitySourceName);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Starting database migration...");
+        using var activity = activitySource.StartActivity(
+            "Migrating database", ActivityKind.Client);
 
-        using var scope = serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<FamlyrDbContext>();
+        try
+        {
+            logger.LogInformation("Starting database migration...");
 
-        await dbContext.Database.MigrateAsync(stoppingToken);
-        logger.LogInformation("Database migration completed");
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<FamlyrDbContext>();
 
-        logger.LogInformation("Checking if seeding is needed...");
-        await FamilyTreeSeeder.SeedAsync(dbContext, stoppingToken);
-        logger.LogInformation("Seeding check completed");
+            await dbContext.Database.MigrateAsync(stoppingToken);
+            logger.LogInformation("Database migration completed");
+
+            logger.LogInformation("Checking if seeding is needed...");
+            await FamilyTreeSeeder.SeedAsync(dbContext, stoppingToken);
+            logger.LogInformation("Seeding check completed");
+        }
+        catch (Exception ex)
+        {
+            activity?.AddException(ex);
+            throw;
+        }
 
         hostApplicationLifetime.StopApplication();
     }

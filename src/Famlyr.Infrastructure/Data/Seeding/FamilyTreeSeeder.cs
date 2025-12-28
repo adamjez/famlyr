@@ -51,6 +51,7 @@ public static class FamilyTreeSeeder
         var random = new Random(42); // Fixed seed for reproducible results
         var persons = new List<Person>();
         var relationships = new List<Relationship>();
+        var marriedPersons = new HashSet<Guid>();
 
         var tree = new FamilyTree
         {
@@ -59,31 +60,30 @@ public static class FamilyTreeSeeder
             OwnerId = Guid.CreateVersion7()
         };
 
+        // Start with a single founding couple to ensure connected tree
+        var founder = CreatePerson(random, Gender.Male, "Smith", 1880, tree.Id);
+        founder.DeathDate = new DateOnly(1955, random.Next(1, 13), random.Next(1, 28));
+        var founderWife = CreatePerson(random, Gender.Female, GetLastName(random), 1882, tree.Id);
+        founderWife.DeathDate = new DateOnly(1960, random.Next(1, 13), random.Next(1, 28));
+
+        persons.Add(founder);
+        persons.Add(founderWife);
+        marriedPersons.Add(founder.Id);
+        marriedPersons.Add(founderWife.Id);
+        relationships.Add(CreateSpouseRelationship(founder, founderWife));
+
+        // Track unmarried children by generation for potential intermarriage
+        var unmarriedByGeneration = new Dictionary<int, List<Person>>();
+
         // Generation tracking: list of couples per generation
-        var generationCouples = new List<List<(Person husband, Person wife)>>();
-
-        // Generation 1: Founding couples (start with 4 founding couples for more breadth)
-        var gen1Couples = new List<(Person husband, Person wife)>();
-        for (var i = 0; i < 4; i++)
+        var generationCouples = new List<List<(Person husband, Person wife)>>
         {
-            var husband = CreatePerson(random, Gender.Male, GetLastName(random), 1900 + random.Next(0, 10), tree.Id);
-            var wife = CreatePerson(random, Gender.Female, GetLastName(random), 1902 + random.Next(0, 10), tree.Id);
-
-            // Older generation - likely deceased
-            husband.DeathDate = new DateOnly(1970 + random.Next(0, 20), random.Next(1, 13), random.Next(1, 28));
-            wife.DeathDate = new DateOnly(1975 + random.Next(0, 20), random.Next(1, 13), random.Next(1, 28));
-
-            persons.Add(husband);
-            persons.Add(wife);
-            gen1Couples.Add((husband, wife));
-
-            relationships.Add(CreateSpouseRelationship(husband, wife));
-        }
-        generationCouples.Add(gen1Couples);
+            new() { (founder, founderWife) }
+        };
 
         // Generate subsequent generations
         var targetPersons = 500;
-        var currentYear = 1925;
+        var currentYear = 1905;
         var generationGap = 25;
         var generation = 2;
 
@@ -91,14 +91,15 @@ public static class FamilyTreeSeeder
         {
             var previousCouples = generationCouples[^1];
             var newCouples = new List<(Person husband, Person wife)>();
+            unmarriedByGeneration[generation] = [];
 
             foreach (var (father, mother) in previousCouples)
             {
                 if (persons.Count >= targetPersons)
                     break;
 
-                // Each couple has 2-4 children
-                var numChildren = random.Next(2, 5);
+                // Each couple has 3-5 children for faster growth
+                var numChildren = random.Next(3, 6);
                 var lastName = father.LastName ?? mother.LastName ?? GetLastName(random);
 
                 for (var c = 0; c < numChildren && persons.Count < targetPersons; c++)
@@ -126,37 +127,54 @@ public static class FamilyTreeSeeder
                     }
 
                     persons.Add(child);
-
-                    // Parent relationships
                     relationships.Add(CreateParentRelationship(child, father));
                     relationships.Add(CreateParentRelationship(child, mother));
 
-                    // Create spouse for this child (if not last generation and not too many people)
-                    if (generation < 7 && persons.Count < targetPersons - 10)
+                    // Try to marry with existing unmarried person from same generation first
+                    if (generation < 7 && persons.Count < targetPersons - 10 && !marriedPersons.Contains(child.Id))
                     {
-                        var spouseGender = childGender == Gender.Male ? Gender.Female : Gender.Male;
-                        var spouseBirthYear = birthYear + random.Next(-3, 4);
-                        var spouse = CreatePerson(random, spouseGender, GetLastName(random), spouseBirthYear, tree.Id);
+                        var potentialSpouse = unmarriedByGeneration[generation]
+                            .FirstOrDefault(p =>
+                                !marriedPersons.Contains(p.Id) &&
+                                p.Gender != childGender &&
+                                p.LastName != child.LastName); // Avoid same family marriage
 
-                        // Death for spouse of older generations
-                        if (generation <= 3 && random.NextDouble() > 0.4)
+                        Person spouse;
+                        if (potentialSpouse != null)
                         {
-                            var deathYear = spouseBirthYear + 60 + random.Next(0, 30);
-                            if (deathYear <= 2024)
+                            // Marry existing person (intermarriage)
+                            spouse = potentialSpouse;
+                        }
+                        else
+                        {
+                            // Create new spouse from outside the tree
+                            var spouseGender = childGender == Gender.Male ? Gender.Female : Gender.Male;
+                            var spouseBirthYear = birthYear + random.Next(-3, 4);
+                            spouse = CreatePerson(random, spouseGender, GetLastName(random), spouseBirthYear, tree.Id);
+
+                            if (generation <= 3 && random.NextDouble() > 0.4)
                             {
-                                spouse.DeathDate = new DateOnly(deathYear, random.Next(1, 13), random.Next(1, 28));
+                                var deathYear = spouseBirthYear + 60 + random.Next(0, 30);
+                                if (deathYear <= 2024)
+                                {
+                                    spouse.DeathDate = new DateOnly(deathYear, random.Next(1, 13), random.Next(1, 28));
+                                }
                             }
+                            persons.Add(spouse);
                         }
 
-                        persons.Add(spouse);
-                        relationships.Add(CreateSpouseRelationship(
-                            childGender == Gender.Male ? child : spouse,
-                            childGender == Gender.Female ? child : spouse));
+                        marriedPersons.Add(child.Id);
+                        marriedPersons.Add(spouse.Id);
 
-                        if (childGender == Gender.Male)
-                            newCouples.Add((child, spouse));
-                        else
-                            newCouples.Add((spouse, child));
+                        var husband = childGender == Gender.Male ? child : spouse;
+                        var wife = childGender == Gender.Female ? child : spouse;
+                        relationships.Add(CreateSpouseRelationship(husband, wife));
+                        newCouples.Add((husband, wife));
+                    }
+                    else
+                    {
+                        // Add to unmarried pool for potential future marriage
+                        unmarriedByGeneration[generation].Add(child);
                     }
                 }
             }
@@ -174,12 +192,6 @@ public static class FamilyTreeSeeder
         foreach (var person in persons)
         {
             tree.Persons.Add(person);
-        }
-
-        // Add all relationships
-        foreach (var relationship in relationships)
-        {
-            // Relationships are added via Person navigation, EF will track them
         }
 
         return tree;
