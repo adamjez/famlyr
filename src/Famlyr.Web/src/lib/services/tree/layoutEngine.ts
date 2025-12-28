@@ -148,17 +148,13 @@ function calculatePositions(
 
             positions.set(person.id, { x: currentX, y });
         }
-    }
 
-    let minX = Infinity, maxX = -Infinity;
-    for (const pos of positions.values()) {
-        minX = Math.min(minX, pos.x);
-        maxX = Math.max(maxX, pos.x);
-    }
-    const centerOffset = (minX + maxX) / 2;
-
-    for (const pos of positions.values()) {
-        pos.x -= centerOffset;
+        const layerWidth = currentX + config.nodeWidth;
+        const layerOffset = layerWidth / 2;
+        for (const person of persons) {
+            const pos = positions.get(person.id)!;
+            pos.x -= layerOffset;
+        }
     }
 
     return positions;

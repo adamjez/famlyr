@@ -96,6 +96,11 @@ export class TreeRenderer {
         const to = layout.nodes.get(connection.toIds[0]);
         if (!from || !to) return;
 
+        const sharedChildren = from.childIds.filter(childId => to.childIds.includes(childId));
+        if (sharedChildren.length > 0) {
+            return;
+        }
+
         const y = from.position.y + from.height / 2;
         const x1 = from.position.x + from.width;
         const x2 = to.position.x;

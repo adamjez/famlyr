@@ -30,13 +30,13 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 - [ ] Render family tree on Canvas/WebGL using Pixi.js for 60fps performance
 - [ ] Display person nodes with content based on current zoom level
 - [ ] Render parent-child connections: vertical line from midpoint between parents down to children
-- [ ] Render spouse connections as horizontal line ONLY when couple has no children
+- [x] Render spouse connections as horizontal line ONLY when couple has no children
 - [ ] When parents have children: the horizontal parent connection and vertical child line form a "T" or inverted "Y" shape
 - [ ] Support trees with up to 1000 persons
 - [ ] Color-code nodes by gender (configurable colors)
 
 #### Navigation
-- [ ] Zoom in/out with mouse wheel or trackpad
+- [x] Zoom in/out with mouse wheel or trackpad
 - [ ] Pan the tree by clicking and dragging
 - [ ] Pinch-to-zoom gesture on touch devices
 - [ ] Two-finger pan gesture on touch devices

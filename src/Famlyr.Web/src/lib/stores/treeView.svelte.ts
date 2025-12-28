@@ -57,18 +57,17 @@ function createTreeViewState() {
 
         zoom(newZoom: number, centerX?: number, centerY?: number) {
             const clampedZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom));
+            const zoomRatio = clampedZoom / viewport.zoom;
 
-            if (centerX !== undefined && centerY !== undefined) {
-                const zoomRatio = clampedZoom / viewport.zoom;
-                viewport = {
-                    ...viewport,
-                    x: centerX - (centerX - viewport.x) * zoomRatio,
-                    y: centerY - (centerY - viewport.y) * zoomRatio,
-                    zoom: clampedZoom
-                };
-            } else {
-                viewport = { ...viewport, zoom: clampedZoom };
-            }
+            const pivotX = (centerX ?? viewport.width / 2) - viewport.width / 2;
+            const pivotY = (centerY ?? viewport.height / 2) - viewport.height / 2;
+
+            viewport = {
+                ...viewport,
+                x: pivotX + (viewport.x - pivotX) * zoomRatio,
+                y: pivotY + (viewport.y - pivotY) * zoomRatio,
+                zoom: clampedZoom
+            };
         },
 
         selectPerson(personId: string | null) {
