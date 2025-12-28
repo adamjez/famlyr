@@ -2,6 +2,12 @@ import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
 import type { TreeLayout, Viewport, TreeNode } from '$lib/types/tree';
 import { ZOOM_MAX } from '$lib/types/tree';
 
+const ANIMATION_DURATION = 300;
+
+function easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
+}
+
 function createTreeViewState() {
     let tree = $state<FamilyTreeModel | null>(null);
     let layout = $state<TreeLayout | null>(null);
@@ -18,6 +24,8 @@ function createTreeViewState() {
 
     let selectedPersonId = $state<string | null>(null);
     let focusedPersonId = $state<string | null>(null);
+
+    let animationFrameId: number | null = null;
 
     const selectedPerson = $derived.by<PersonModel | null>(() => {
         if (!tree || !selectedPersonId) return null;
@@ -58,6 +66,126 @@ function createTreeViewState() {
             x: -centerX * zoom,
             y: -centerY * zoom
         };
+    }
+
+    function getRelatedNodeIds(personId: string): string[] {
+        if (!layout) return [personId];
+
+        const node = layout.nodes.get(personId);
+        if (!node) return [personId];
+
+        const relatedIds = new Set<string>();
+        relatedIds.add(personId);
+
+        for (const parentId of node.parentIds) {
+            relatedIds.add(parentId);
+        }
+
+        for (const childId of node.childIds) {
+            relatedIds.add(childId);
+        }
+
+        for (const spouseId of node.spouseIds) {
+            relatedIds.add(spouseId);
+        }
+
+        return Array.from(relatedIds);
+    }
+
+    function calculateGroupBounds(nodeIds: string[]): { minX: number; maxX: number; minY: number; maxY: number } | null {
+        if (!layout || nodeIds.length === 0) return null;
+
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+
+        for (const nodeId of nodeIds) {
+            const node = layout.nodes.get(nodeId);
+            if (!node) continue;
+
+            minX = Math.min(minX, node.position.x);
+            maxX = Math.max(maxX, node.position.x + node.width);
+            minY = Math.min(minY, node.position.y);
+            maxY = Math.max(maxY, node.position.y + node.height);
+        }
+
+        if (minX === Infinity) return null;
+
+        const padding = 50;
+        return {
+            minX: minX - padding,
+            maxX: maxX + padding,
+            minY: minY - padding,
+            maxY: maxY + padding
+        };
+    }
+
+    function animateViewport(targetX: number, targetY: number, targetZoom: number) {
+        if (animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        const startX = viewport.x;
+        const startY = viewport.y;
+        const startZoom = viewport.zoom;
+        const startTime = performance.now();
+
+        function animate(currentTime: number) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+            const easedProgress = easeOutCubic(progress);
+
+            const newX = startX + (targetX - startX) * easedProgress;
+            const newY = startY + (targetY - startY) * easedProgress;
+            const newZoom = startZoom + (targetZoom - startZoom) * easedProgress;
+
+            viewport = {
+                ...viewport,
+                x: newX,
+                y: newY,
+                zoom: newZoom
+            };
+
+            if (progress < 1) {
+                animationFrameId = requestAnimationFrame(animate);
+            } else {
+                animationFrameId = null;
+            }
+        }
+
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function zoomToGroup(nodeIds: string[], animated: boolean = true) {
+        if (viewport.width === 0 || viewport.height === 0) return;
+
+        const bounds = calculateGroupBounds(nodeIds);
+        if (!bounds) return;
+
+        const groupWidth = bounds.maxX - bounds.minX;
+        const groupHeight = bounds.maxY - bounds.minY;
+
+        const zoomX = viewport.width / groupWidth;
+        const zoomY = viewport.height / groupHeight;
+        const targetZoom = Math.min(zoomX, zoomY) * 0.9;
+
+        const clampedZoom = Math.max(fitZoom, Math.min(ZOOM_MAX, targetZoom));
+
+        const centerX = (bounds.minX + bounds.maxX) / 2;
+        const centerY = (bounds.minY + bounds.maxY) / 2;
+
+        const targetX = -centerX * clampedZoom;
+        const targetY = -centerY * clampedZoom;
+
+        if (animated) {
+            animateViewport(targetX, targetY, clampedZoom);
+        } else {
+            viewport = {
+                ...viewport,
+                x: targetX,
+                y: targetY,
+                zoom: clampedZoom
+            };
+        }
     }
 
     return {
@@ -109,6 +237,11 @@ function createTreeViewState() {
 
         selectPerson(personId: string | null) {
             selectedPersonId = personId;
+
+            if (personId) {
+                const relatedIds = getRelatedNodeIds(personId);
+                zoomToGroup(relatedIds, true);
+            }
         },
 
         setFocusPerson(personId: string | null) {
@@ -124,7 +257,7 @@ function createTreeViewState() {
         resetViewport() {
             fitZoom = calculateFitZoom();
             const position = calculateFitPosition(fitZoom);
-            viewport = { ...viewport, x: position.x, y: position.y, zoom: fitZoom };
+            animateViewport(position.x, position.y, fitZoom);
         }
     };
 }

@@ -37,12 +37,14 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 
 #### Navigation
 - [x] Zoom in/out with mouse wheel or trackpad
-- [ ] Pan the tree by clicking and dragging
+- [x] Pan the tree by clicking and dragging
 - [ ] Pinch-to-zoom gesture on touch devices
 - [ ] Two-finger pan gesture on touch devices
-- [ ] Smooth animated transitions between zoom levels (300ms)
+- [x] Smooth animated transitions between zoom levels (300ms)
 - [ ] Double-click/tap on person to center and zoom to them
-- [ ] Zoom limits: minimum 0.1x, maximum 3.0x
+- [x] Zoom limits: minimum fit-to-screen, maximum 3.0x
+- [x] Initial view fits entire tree on screen
+- [x] Reset button returns to fit-to-screen view
 
 #### Focus Mode
 - [ ] User can select any person as the focus
@@ -76,10 +78,11 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 - [ ] Keyboard shortcut: `/` to focus search bar
 
 #### Person Selection
-- [ ] Click/tap on person node to select
-- [ ] Display detail panel (slide-in from right) for selected person
-- [ ] Highlight selected node with distinct border
+- [x] Click/tap on person node to select
+- [x] Display detail panel (slide-in from right) for selected person
+- [x] Highlight selected node with distinct border
 - [ ] Close panel with X button or clicking outside
+- [x] Zoom to selected person and their direct relatives (parents, children, spouses)
 
 ### Non-functional
 
