@@ -74,8 +74,8 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 | firstName | string | No | Person's first name (max 100 chars) |
 | lastName | string | No | Person's last name (max 100 chars) |
 | gender | string | No | Gender: Male, Female, Other, Unknown (default: Unknown) |
-| birthDate | string | No | Birth date (ISO 8601 date: YYYY-MM-DD) |
-| deathDate | string | No | Death date (ISO 8601 date: YYYY-MM-DD) |
+| birthDate | string | No | Birth date (YYYY or YYYY-MM-DD) |
+| deathDate | string | No | Death date (YYYY or YYYY-MM-DD) |
 | notes | string | No | Free-form notes with markdown support (max 10,000 chars) |
 | photos | File[] | No | Photo files (JPEG, PNG, WebP; max 5MB each; max 20 files) |
 
@@ -102,6 +102,8 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 }
 ```
 
+**Note:** Date fields return in the same format they were stored (year-only returns "1950", full date returns "1950-03-15").
+
 **Error Responses:**
 
 | Status | Code | Description |
@@ -110,8 +112,8 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 | 400 | LAST_NAME_TOO_LONG | lastName exceeds 100 characters |
 | 400 | NOTES_TOO_LONG | notes exceeds 10,000 characters |
 | 400 | INVALID_GENDER | gender is not a valid enum value |
-| 400 | INVALID_DATE_FORMAT | birthDate or deathDate is not valid ISO 8601 |
-| 400 | DEATH_BEFORE_BIRTH | deathDate is before birthDate |
+| 400 | INVALID_DATE_FORMAT | birthDate or deathDate is not valid (use YYYY or YYYY-MM-DD) |
+| 400 | DEATH_BEFORE_BIRTH | deathDate year is before birthDate year |
 | 400 | INVALID_PHOTO_FORMAT | Photo file is not JPEG, PNG, or WebP |
 | 400 | PHOTO_TOO_LARGE | Photo file exceeds 5MB |
 | 400 | PHOTO_DIMENSIONS_INVALID | Photo dimensions out of range (100x100 to 4096x4096) |
@@ -141,8 +143,8 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 | firstName | string | No | Person's first name (max 100 chars) |
 | lastName | string | No | Person's last name (max 100 chars) |
 | gender | string | No | Gender: Male, Female, Other, Unknown |
-| birthDate | string | No | Birth date (ISO 8601 date: YYYY-MM-DD, empty to clear) |
-| deathDate | string | No | Death date (ISO 8601 date: YYYY-MM-DD, empty to clear) |
+| birthDate | string | No | Birth date (YYYY or YYYY-MM-DD, empty to clear) |
+| deathDate | string | No | Death date (YYYY or YYYY-MM-DD, empty to clear) |
 | notes | string | No | Free-form notes with markdown support (max 10,000 chars, empty to clear) |
 | photos | File[] | No | New photos to add (max 5MB each) |
 
@@ -184,8 +186,8 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 | 400 | LAST_NAME_TOO_LONG | lastName exceeds 100 characters |
 | 400 | NOTES_TOO_LONG | notes exceeds 10,000 characters |
 | 400 | INVALID_GENDER | gender is not a valid enum value |
-| 400 | INVALID_DATE_FORMAT | birthDate or deathDate is not valid ISO 8601 |
-| 400 | DEATH_BEFORE_BIRTH | deathDate is before birthDate |
+| 400 | INVALID_DATE_FORMAT | birthDate or deathDate is not valid (use YYYY or YYYY-MM-DD) |
+| 400 | DEATH_BEFORE_BIRTH | deathDate year is before birthDate year |
 | 400 | INVALID_PHOTO_FORMAT | Photo file is not JPEG, PNG, or WebP |
 | 400 | PHOTO_TOO_LARGE | Photo file exceeds 5MB |
 | 400 | PHOTO_DIMENSIONS_INVALID | Photo dimensions out of range |
@@ -615,8 +617,12 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 | FirstName | string? | Max 100 chars | Person's first name |
 | LastName | string? | Max 100 chars | Person's last name |
 | Gender | Gender | Required, default Unknown | Person's gender |
-| BirthDate | DateOnly? | | Date of birth |
-| DeathDate | DateOnly? | | Date of death |
+| BirthYear | int? | 1-9999 | Year of birth |
+| BirthMonth | int? | 1-12 | Month of birth (null if only year known) |
+| BirthDay | int? | 1-31 | Day of birth (null if only year/month known) |
+| DeathYear | int? | 1-9999 | Year of death |
+| DeathMonth | int? | 1-12 | Month of death (null if only year known) |
+| DeathDay | int? | 1-31 | Day of death (null if only year/month known) |
 | Notes | string? | Max 10,000 chars | **NEW** Free-form notes with markdown support |
 | FamilyTreeId | Guid | FK to FamilyTree, Required | Reference to family tree |
 | Photos | ICollection<PersonPhoto> | | **NEW** Navigation to photos |
@@ -668,8 +674,8 @@ builder.HasIndex(p => new { p.PersonId, p.IsPrimary });
 | firstName | Optional, max 100 chars |
 | lastName | Optional, max 100 chars |
 | gender | Optional, must be valid Gender enum value |
-| birthDate | Optional, valid date, must be before deathDate if both provided |
-| deathDate | Optional, valid date, must be after birthDate if both provided |
+| birthDate | Optional, format YYYY or YYYY-MM-DD, must be before deathDate if both provided (compared at year level if either is year-only) |
+| deathDate | Optional, format YYYY or YYYY-MM-DD, must be after birthDate if both provided (compared at year level if either is year-only) |
 | notes | Optional, max 10,000 chars, supports markdown |
 | photos | Optional, each max 5MB, JPEG/PNG/WebP, 100x100 to 4096x4096 px, max 20 total |
 | photoIds (reorder) | Required, must contain all photo IDs for the person |
@@ -687,7 +693,11 @@ builder.HasIndex(p => new { p.PersonId, p.IsPrimary });
 | Create with neither name | Valid, both names remain null (unknown person) |
 | Edit to remove both names | Valid, both names set to null (unknown person) |
 | Create with future birthDate | Valid (user responsibility) |
-| deathDate before birthDate | Return 400 DEATH_BEFORE_BIRTH |
+| Birth date as year only "1920" | Valid, stored with month/day as null |
+| Death date as year only "1985" | Valid, stored with month/day as null |
+| Birth "1920", death "1920" (same year) | Valid (can't determine order with year-only) |
+| Birth "1920-06-15", death "1920" | Valid (year comparison only when either is year-only) |
+| deathDate year before birthDate year | Return 400 DEATH_BEFORE_BIRTH |
 | Upload 21 photos on create | Return 400 TOO_MANY_PHOTOS |
 | Add photos exceeding 20 total on edit | Return 400 PHOTO_LIMIT_EXCEEDED |
 | First photo uploaded | Automatically set as primary |

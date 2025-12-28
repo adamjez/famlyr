@@ -304,7 +304,7 @@ interface LODConfig {
       "lastName": "Smith",
       "gender": "Male",
       "birthDate": "1940-05-15",
-      "deathDate": "2015-03-22"
+      "deathDate": "2015"
     }
   ],
   "relationships": [
@@ -357,7 +357,8 @@ interface LODConfig {
 ```
 
 **Notes:**
-- `birthYear`/`deathYear` instead of full dates (smaller payload)
+- `birthYear`/`deathYear` instead of full dates (smaller payload, extracted from stored date)
+- Date fields support year-only format ("1940") or full date ("1940-05-15")
 - Relationship IDs omitted (not needed for rendering)
 - `primaryPhotoUrl` is base64 data URL of primary photo (null if no photos)
 
@@ -375,7 +376,7 @@ interface LODConfig {
   "lastName": "Smith",
   "gender": "Male",
   "birthDate": "1940-05-15",
-  "deathDate": "2015-03-22",
+  "deathDate": "2015",
   "birthPlace": "New York, NY",
   "primaryPhotoUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
   "photos": [
@@ -399,6 +400,7 @@ interface LODConfig {
 ```
 
 **Notes:**
+- `birthDate`/`deathDate` return in stored format (year-only "1940" or full "1940-05-15")
 - `primaryPhotoUrl` is the primary photo for quick display
 - `photos` array contains all photos for the gallery in detail panel
 - See `person-photos.md` spec for photo management APIs
