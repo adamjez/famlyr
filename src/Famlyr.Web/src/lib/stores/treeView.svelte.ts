@@ -41,8 +41,8 @@ function createTreeViewState() {
         const zoomX = viewport.width / treeWidth;
         const zoomY = viewport.height / treeHeight;
 
-        const calculatedZoom = Math.min(zoomX, zoomY) * 0.9;
-        return Math.max(0.05, Math.min(calculatedZoom, 1));
+        const calculatedZoom = Math.min(zoomX, zoomY) * 0.95;
+        return Math.max(0.001, calculatedZoom);
     }
 
     function calculateFitPosition(zoom: number): { x: number; y: number } {
