@@ -50,4 +50,20 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpGet("/api/trees")]
+    public async Task<ActionResult<FamilyTreeListResponse>> GetFamilyTrees()
+    {
+        var trees = await context.FamilyTrees
+            .Select(ft => new FamilyTreeSummaryModel
+            {
+                Id = ft.Id,
+                Name = ft.Name,
+                Description = ft.Description,
+                PersonCount = ft.Persons.Count
+            })
+            .ToListAsync();
+
+        return Ok(new FamilyTreeListResponse { Trees = trees });
+    }
 }

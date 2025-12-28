@@ -5,43 +5,29 @@
 </script>
 
 <svelte:head>
-    <title>Famlyr - Family Tree</title>
+    <title>Family Trees - Famlyr</title>
 </svelte:head>
 
 <div class="space-y-8">
-    <h1>Family Tree</h1>
+    <h1>Family Trees</h1>
 
-    <div class="card">
-        <div class="flex items-center justify-between">
-            <div>
-                <h2 class="text-2xl">{data.tree.name}</h2>
-                {#if data.tree.description}
-                    <p class="mt-3 text-neutral-600">{data.tree.description}</p>
-                {/if}
-            </div>
-            <a href="/tree/{data.tree.id}" class="btn btn-primary">View Tree</a>
+    {#if data.trees.length === 0}
+        <div class="card text-center py-12">
+            <p class="text-neutral-500">No family trees yet.</p>
         </div>
-
-        <p class="mt-4 text-sm text-neutral-500">{data.tree.persons.length} persons</p>
-
-        <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {#each data.tree.persons as person}
-                <article class="card-interactive">
-                    <p class="font-medium text-neutral-900">
-                        {person.firstName ?? "Unknown"}
-                        {person.lastName ?? ""}
-                    </p>
-                    <p class="mt-1 text-sm text-neutral-500">{person.gender}</p>
-                    {#if person.birthDate}
-                        <p class="mt-1 text-sm text-neutral-500">
-                            Born: {person.birthDate}
-                            {#if person.deathDate}
-                                - Died: {person.deathDate}
-                            {/if}
-                        </p>
+    {:else}
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {#each data.trees as tree}
+                <a href="/tree/{tree.id}" class="card-interactive block">
+                    <h2 class="text-lg font-semibold text-neutral-900">{tree.name}</h2>
+                    {#if tree.description}
+                        <p class="mt-2 text-sm text-neutral-600 line-clamp-2">{tree.description}</p>
                     {/if}
-                </article>
+                    <p class="mt-3 text-sm text-neutral-500">
+                        {tree.personCount} {tree.personCount === 1 ? 'person' : 'persons'}
+                    </p>
+                </a>
             {/each}
         </div>
-    </div>
+    {/if}
 </div>

@@ -27,3 +27,14 @@ export interface FamilyTreeModel {
     persons: PersonModel[];
     relationships: RelationshipModel[];
 }
+
+export interface FamilyTreeSummaryModel {
+    id: string;
+    name: string;
+    description: string | null;
+    personCount: number;
+}
+
+export interface FamilyTreeListResponse {
+    trees: FamilyTreeSummaryModel[];
+}

@@ -1,6 +1,6 @@
 # Feature: List Family Trees
 
-> **Status:** Draft
+> **Status:** Implemented
 > **GitHub Issue:** #TBD
 > **Author:** Adam Jež
 > **Last Updated:** 2025-12-28
