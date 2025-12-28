@@ -38,3 +38,20 @@ export interface FamilyTreeSummaryModel {
 export interface FamilyTreeListResponse {
     trees: FamilyTreeSummaryModel[];
 }
+
+export interface YearRangeModel {
+    start: number;
+    end: number;
+}
+
+export interface FamilyTreeDetailModel {
+    id: string;
+    name: string;
+    description: string | null;
+    createdAt: string;
+    updatedAt: string;
+    personCount: number;
+    yearRange: YearRangeModel | null;
+    persons: PersonModel[];
+    relationships: RelationshipModel[];
+}

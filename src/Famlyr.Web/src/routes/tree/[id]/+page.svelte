@@ -1,10 +1,13 @@
 <script lang="ts">
     import { browser } from '$app/environment';
+    import { page } from '$app/stores';
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
 
     let TreeViewer: typeof import('$lib/components/tree/TreeViewer.svelte').default | null = $state(null);
+
+    const focusPersonId = $derived($page.url.searchParams.get('focus'));
 
     $effect(() => {
         if (browser) {
@@ -20,6 +23,15 @@
 </svelte:head>
 
 <div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-neutral-500">
+        <a href="/" class="hover:text-primary-600 transition-colors">Family Trees</a>
+        <span>/</span>
+        <a href="/trees/{data.tree.id}" class="hover:text-primary-600 transition-colors">{data.tree.name}</a>
+        <span>/</span>
+        <span class="text-neutral-900">Tree View</span>
+    </nav>
+
     <header class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-neutral-900">{data.tree.name}</h1>
@@ -27,11 +39,11 @@
                 <p class="mt-1 text-neutral-600">{data.tree.description}</p>
             {/if}
         </div>
-        <a href="/" class="btn btn-secondary">Back to Home</a>
+        <a href="/trees/{data.tree.id}" class="btn btn-secondary">Back to Details</a>
     </header>
 
     {#if TreeViewer}
-        <TreeViewer tree={data.tree} />
+        <TreeViewer tree={data.tree} {focusPersonId} />
     {:else}
         <div class="tree-loading">
             <p>Loading tree viewer...</p>

@@ -7,9 +7,22 @@
 
     interface Props {
         tree: FamilyTreeModel;
+        focusPersonId?: string | null;
     }
 
-    let { tree }: Props = $props();
+    let { tree, focusPersonId = null }: Props = $props();
+
+    let hasInitialFocus = $state(false);
+
+    $effect(() => {
+        if (focusPersonId && treeViewState.layout && !hasInitialFocus) {
+            hasInitialFocus = true;
+            // Use setTimeout to ensure the layout is fully rendered
+            setTimeout(() => {
+                treeViewState.selectPerson(focusPersonId);
+            }, 100);
+        }
+    });
 </script>
 
 <div class="tree-viewer">

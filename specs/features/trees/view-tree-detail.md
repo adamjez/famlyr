@@ -1,6 +1,6 @@
 # Feature: View Family Tree Detail
 
-> **Status:** Draft
+> **Status:** Implemented
 > **GitHub Issue:** #TBD
 > **Author:** Adam Jež
 > **Last Updated:** 2025-12-28
@@ -18,6 +18,8 @@ Display detailed information about a family tree after clicking it in the list v
 5. **As a user**, I want to browse a list of all persons in the tree so that I can find specific family members.
 6. **As a user**, I want to click on a person to see their details so that I can learn more about them.
 7. **As a user**, I want to navigate to the tree visualization from a person's details so that I can see them in context.
+8. **As a user**, I want to see a person's parents, spouse(s), and children so that I can understand their family relationships.
+9. **As a user**, I want to click on a family member to navigate to their details so that I can explore the family tree.
 
 ## Requirements
 
@@ -31,8 +33,14 @@ Display detailed information about a family tree after clicking it in the list v
 - Display tree statistics:
   - Total person count
   - Year range (earliest to latest year from birth/death dates)
-- Display list of all persons with basic info (name, birth/death years)
-- Click person to show details inline or in modal
+- Display list of all persons with basic info (name, birth/death years, gender)
+  - Sorted by birthdate (youngest to oldest)
+- Click person to show slide-in detail panel
+- Person detail panel shows:
+  - Basic info (name, gender, birth/death dates)
+  - Parents (clickable to navigate)
+  - Spouse(s) (clickable to navigate)
+  - Children (clickable to navigate)
 - Button in person details to navigate to tree viewer focused on that person
 - Link to open full tree visualization
 
@@ -79,6 +87,14 @@ Returns family tree with metadata, computed statistics, and all persons.
       "birthDate": "1920-05-15",
       "deathDate": "1995-03-22"
     }
+  ],
+  "relationships": [
+    {
+      "id": "019b6252-6256-72f4-903d-8dd21ad3cc24",
+      "type": "Parent",
+      "subjectId": "019b6252-6256-72f4-903d-8dd21ad3cc25",
+      "relativeId": "019b6252-6256-72f4-903d-8dd21ad3cc23"
+    }
   ]
 }
 ```
@@ -96,7 +112,12 @@ Returns family tree with metadata, computed statistics, and all persons.
 | yearRange | object? | Year range object (null if no dates available) |
 | yearRange.start | int | Earliest year (min of all birth/death years) |
 | yearRange.end | int | Latest year (max of all birth/death years) |
-| persons | array | List of all persons in the tree |
+| persons | array | List of all persons in the tree (sorted by birthdate, youngest first) |
+| relationships | array | List of all relationships between persons |
+| relationships[].id | Guid | Relationship ID |
+| relationships[].type | string | "Parent" or "Spouse" |
+| relationships[].subjectId | Guid | For Parent: child ID. For Spouse: either spouse |
+| relationships[].relativeId | Guid | For Parent: parent ID. For Spouse: other spouse |
 
 **Error Responses:**
 
@@ -110,31 +131,34 @@ Returns family tree with metadata, computed statistics, and all persons.
 No new entities required. Uses existing `FamilyTree` and `Person` entities with a projection query.
 
 **Query Strategy:**
+
+Single query to fetch tree, persons, and relationships. Year range computed in memory from results:
+
 ```csharp
-var tree = await context.FamilyTrees
+var result = await context.FamilyTrees
     .Where(ft => ft.Id == id)
-    .Select(ft => new FamilyTreeDetailModel
+    .Select(ft => new
     {
-        Id = ft.Id,
-        Name = ft.Name,
-        Description = ft.Description,
-        CreatedAt = ft.CreatedAt,
-        UpdatedAt = ft.UpdatedAt,
-        PersonCount = ft.Persons.Count,
-        YearRange = new YearRangeModel
-        {
-            Start = ft.Persons
-                .SelectMany(p => new[] { p.BirthDate, p.DeathDate })
-                .Where(d => d != null)
-                .Min(d => d!.Value.Year),
-            End = ft.Persons
-                .SelectMany(p => new[] { p.BirthDate, p.DeathDate })
-                .Where(d => d != null)
-                .Max(d => d!.Value.Year)
-        },
-        Persons = ft.Persons.Select(p => new PersonModel { ... }).ToList()
+        ft.Id, ft.Name, ft.Description, ft.CreatedAt, ft.UpdatedAt,
+        Persons = ft.Persons
+            .OrderByDescending(p => p.BirthDate)
+            .Select(p => new PersonModel { ... }).ToList(),
+        Relationships = ft.Persons
+            .SelectMany(p => p.RelationshipsAsSubject)
+            .Select(r => new RelationshipModel { ... }).ToList()
     })
     .FirstOrDefaultAsync();
+
+// Compute year range in memory
+var allYears = result.Persons
+    .SelectMany(p => new[] { p.BirthDate, p.DeathDate })
+    .Where(d => d != null)
+    .Select(d => d!.Value.Year)
+    .ToList();
+
+var yearRange = allYears.Count > 0
+    ? new YearRangeModel { Start = allYears.Min(), End = allYears.Max() }
+    : null;
 ```
 
 ## Frontend Components
@@ -145,6 +169,7 @@ var tree = await context.FamilyTrees
 |------|---------|
 | `src/routes/trees/[id]/+page.svelte` | Tree detail page component |
 | `src/routes/trees/[id]/+page.server.ts` | Server-side data loading |
+| `src/lib/components/PersonDetailPanel.svelte` | Slide-in panel for person details with family navigation |
 | `src/lib/api/familyTree.ts` | Add `getTreeDetails()` function |
 | `src/lib/types/api.ts` | Add `FamilyTreeDetailModel`, `YearRangeModel` types |
 
@@ -168,14 +193,23 @@ var tree = await context.FamilyTrees
    - Click to expand/show modal with full details
    - "View in Tree" button in details → `/tree/{id}?focus={personId}`
 
-### Person Detail Display
+### Person Detail Panel
 
-When clicking a person, show:
-- Full name
-- Gender
+When clicking a person, a slide-in panel appears from the right showing:
+- Full name (header)
+- Gender (badge)
 - Birth date (formatted)
 - Death date (formatted, if applicable)
-- "View in Tree" button
+- Parents (clickable links with green accent, navigate to parent's panel)
+- Spouse(s) (clickable links with purple accent, navigate to spouse's panel)
+- Children (clickable links with orange accent, navigate to child's panel)
+- "View in Tree" button → `/tree/{id}?focus={personId}`
+
+Panel features:
+- Backdrop overlay (click to close)
+- Close button (X icon)
+- Escape key to close
+- Animated slide-in from right
 
 ## Validation Rules
 
@@ -206,7 +240,7 @@ No user input validation required for this read-only feature.
 - Exporting tree data
 - Sharing tree with others
 - Search within person list
-- Sorting/filtering persons
+- Custom sorting/filtering options (default sort by birthdate is implemented)
 
 ## Open Questions
 

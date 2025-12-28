@@ -18,7 +18,7 @@
     {:else}
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {#each data.trees as tree}
-                <a href="/tree/{tree.id}" class="card-interactive block">
+                <a href="/trees/{tree.id}" class="card-interactive block">
                     <h2 class="text-lg font-semibold text-neutral-900">{tree.name}</h2>
                     {#if tree.description}
                         <p class="mt-2 text-sm text-neutral-600 line-clamp-2">{tree.description}</p>
