@@ -57,7 +57,10 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 #### Levels of Detail (LOD)
 - [ ] **LOD 1 (Zoom < 0.2)**: Tree shape only - small colored rectangles by gender, century/decade row indicators
 - [ ] **LOD 2 (Zoom 0.2-0.5)**: Medium detail - person names (truncated), birth/death years
-- [ ] **LOD 3 (Zoom > 0.5)**: Full details - photo placeholder, full name, dates, birthplace, gender icon
+- [ ] **LOD 3 (Zoom > 0.5)**: Full details - primary photo (circular crop, ~40px), full name, dates, birthplace, gender icon
+  - Photo displayed in top-left or top portion of node
+  - Show placeholder avatar if no photo (gender-based icon or initials)
+  - See `person-photos.md` spec for photo data model
 
 #### Timeline Indicators
 - [ ] Group persons into horizontal bands by birth century/decade
@@ -155,7 +158,9 @@ Rationale:
 |------------|-----------|------------------|----------|
 | < 0.2 | 20x20px | Colored rectangle (gender-based) | Century labels |
 | 0.2 - 0.5 | 80x50px | Name (truncated to 15 chars), birth year | Decade labels |
-| > 0.5 | 200x140px | Photo area, full name, birth/death dates, birthplace | None |
+| > 0.5 | 200x140px | Primary photo (circular, ~40px), full name, birth/death dates, birthplace | None |
+
+> **Photo Display at LOD 3:** Primary photo is displayed as a circular crop in the top portion of the node. If no photo exists, show a placeholder (gender-based colored circle with initials or icon).
 
 ### Component Architecture
 
@@ -310,7 +315,7 @@ interface LODConfig {
       "gender": "Male",
       "birthYear": 1940,
       "deathYear": 2015,
-      "photoUrl": null
+      "primaryPhotoUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
     }
   ],
   "relationships": [
@@ -326,11 +331,11 @@ interface LODConfig {
 **Notes:**
 - `birthYear`/`deathYear` instead of full dates (smaller payload)
 - Relationship IDs omitted (not needed for rendering)
-- Optional `photoUrl` for thumbnails
+- `primaryPhotoUrl` is base64 data URL of primary photo (null if no photos)
 
 ### `GET /api/trees/{treeId}/persons/{personId}` (New - On Demand)
 
-**Description:** Fetch full person details when zoomed in
+**Description:** Fetch full person details when zoomed in or for detail panel
 
 **Authentication:** None (v0.1) / Required in v0.3
 
@@ -344,10 +349,31 @@ interface LODConfig {
   "birthDate": "1940-05-15",
   "deathDate": "2015-03-22",
   "birthPlace": "New York, NY",
-  "photoUrl": "https://example.com/photos/john.jpg",
+  "primaryPhotoUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+  "photos": [
+    {
+      "id": "019400a0-7b1a-7abc-8def-444444444444",
+      "isPrimary": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "order": 0,
+      "imageUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+    },
+    {
+      "id": "019400a0-7b1a-7abc-8def-555555555555",
+      "isPrimary": false,
+      "createdAt": "2025-01-16T14:22:00Z",
+      "order": 1,
+      "imageUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+    }
+  ],
   "notes": "Served in WWII"
 }
 ```
+
+**Notes:**
+- `primaryPhotoUrl` is the primary photo for quick display
+- `photos` array contains all photos for the gallery in detail panel
+- See `person-photos.md` spec for photo management APIs
 
 ## Data Model Extensions
 
@@ -356,10 +382,22 @@ interface LODConfig {
 | Field | Type | Constraints | Notes |
 |-------|------|-------------|-------|
 | BirthPlace | string? | Max 200 chars | City, State/Country |
-| PhotoUrl | string? | Valid URL | External or CDN URL |
 | Notes | string? | Max 2000 chars | Trivia, biography |
 
-> These fields will be added in a future iteration. For now, photo placeholder and empty birthplace are displayed.
+> BirthPlace and Notes will be added in a future iteration.
+
+### PersonPhoto Entity
+
+Photos are stored via the `PersonPhoto` entity. See `person-photos.md` spec for full data model.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Id | Guid | UUIDv7 identifier |
+| PersonId | Guid | FK to Person |
+| ImageData | byte[] | Photo binary (TEMPORARY - migrate to blob storage before production) |
+| IsPrimary | bool | Is this the primary display photo |
+| CreatedAt | DateTime | Upload timestamp |
+| Order | int | Gallery display order |
 
 ## Keyboard Navigation
 
@@ -401,6 +439,9 @@ interface LODConfig {
 | Browser without WebGL | Fall back to Canvas 2D (Pixi.js handles automatically) |
 | Search with no results | Display "No persons found" message |
 | Very long person name | Truncate with ellipsis based on LOD |
+| Person with no photos | Show placeholder avatar (gender-based color with initials) |
+| Primary photo loading slow | Show placeholder while loading, fade in when ready |
+| Many persons with photos | Lazy load photos as nodes come into view |
 
 ## Accessibility Considerations
 
@@ -445,12 +486,12 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 - Drag-and-drop to reorder/reparent persons
 - Undo/redo for changes
 - Offline support / PWA
-- Person photo upload (placeholder only in v1)
 - Birthplace geocoding and map view
 - Timeline view (horizontal time-based layout)
 - DNA/genetic relationship visualization
 - Import from GEDCOM format
 - Animated tree growth visualization
+- Photo cropping/editing in tree view (done in detail panel)
 
 ## Open Questions
 
@@ -501,6 +542,6 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 
 ## Related
 
-- **Depends on:** Create Tree (#6), Domain Entities (#3)
+- **Depends on:** Create Tree (#6), Domain Entities (#3), PersonPhoto entity
 - **Blocks:** Edit Person (inline from detail panel), Add Relationship
-- **See also:** v0.1 Implementation Plan
+- **See also:** v0.1 Implementation Plan, `person-photos.md` spec for photo management APIs

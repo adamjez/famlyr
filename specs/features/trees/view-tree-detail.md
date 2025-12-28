@@ -20,6 +20,10 @@ Display detailed information about a family tree after clicking it in the list v
 7. **As a user**, I want to navigate to the tree visualization from a person's details so that I can see them in context.
 8. **As a user**, I want to see a person's parents, spouse(s), and children so that I can understand their family relationships.
 9. **As a user**, I want to click on a family member to navigate to their details so that I can explore the family tree.
+10. **As a user**, I want to see a person's primary photo in the person list so that I can visually identify family members.
+11. **As a user**, I want to see all photos of a person in the detail panel so that I can view their complete photo collection.
+12. **As a user**, I want to upload, delete, and manage photos for a person so that I can maintain their photo gallery.
+13. **As a user**, I want to set a primary photo for a person so that it displays as their main image in lists.
 
 ## Requirements
 
@@ -43,6 +47,15 @@ Display detailed information about a family tree after clicking it in the list v
   - Children (clickable to navigate)
 - Button in person details to navigate to tree viewer focused on that person
 - Link to open full tree visualization
+
+**Photo Display:**
+- Display primary photo thumbnail in person list cards (circular, ~48px)
+- Show placeholder avatar when no photo exists (gender-based icon or initials)
+- Display all photos in person detail panel as a gallery
+- Allow setting primary photo from detail panel
+- Allow uploading new photos from detail panel
+- Allow deleting photos from detail panel
+- See `person-photos.md` spec for photo management API details
 
 ### Non-functional
 
@@ -85,7 +98,8 @@ Returns family tree with metadata, computed statistics, and all persons.
       "lastName": "Smith",
       "gender": "Male",
       "birthDate": "1920-05-15",
-      "deathDate": "1995-03-22"
+      "deathDate": "1995-03-22",
+      "primaryPhotoUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
     }
   ],
   "relationships": [
@@ -113,6 +127,7 @@ Returns family tree with metadata, computed statistics, and all persons.
 | yearRange.start | int | Earliest year (min of all birth/death years) |
 | yearRange.end | int | Latest year (max of all birth/death years) |
 | persons | array | List of all persons in the tree (sorted by birthdate, youngest first) |
+| persons[].primaryPhotoUrl | string? | Base64 data URL of primary photo (null if no photos) |
 | relationships | array | List of all relationships between persons |
 | relationships[].id | Guid | Relationship ID |
 | relationships[].type | string | "Parent" or "Spouse" |
@@ -128,7 +143,12 @@ Returns family tree with metadata, computed statistics, and all persons.
 
 ## Data Model
 
-No new entities required. Uses existing `FamilyTree` and `Person` entities with a projection query.
+Uses existing `FamilyTree` and `Person` entities with a projection query.
+
+**Photo Support:**
+- `PersonPhoto` entity stores photos for each person
+- See `person-photos.md` spec for full data model details
+- Query includes primary photo URL via subquery or join
 
 **Query Strategy:**
 
@@ -142,7 +162,14 @@ var result = await context.FamilyTrees
         ft.Id, ft.Name, ft.Description, ft.CreatedAt, ft.UpdatedAt,
         Persons = ft.Persons
             .OrderByDescending(p => p.BirthDate)
-            .Select(p => new PersonModel { ... }).ToList(),
+            .Select(p => new PersonModel
+            {
+                // ... basic fields
+                PrimaryPhotoUrl = p.Photos
+                    .Where(ph => ph.IsPrimary)
+                    .Select(ph => Convert.ToBase64String(ph.ImageData))
+                    .FirstOrDefault()
+            }).ToList(),
         Relationships = ft.Persons
             .SelectMany(p => p.RelationshipsAsSubject)
             .Select(r => new RelationshipModel { ... }).ToList()
@@ -205,6 +232,16 @@ When clicking a person, a slide-in panel appears from the right showing:
 - Children (clickable links with orange accent, navigate to child's panel)
 - "View in Tree" button → `/tree/{id}?focus={personId}`
 
+**Photo Gallery Section:**
+- Display all photos in a scrollable gallery/grid
+- Primary photo shows a star/badge indicator
+- Click photo to view full size (lightbox)
+- "Set as Primary" button on each non-primary photo
+- "Upload Photo" button to add new photos
+- "Delete" button on each photo (with confirmation)
+- Empty state: "No photos yet" with upload prompt
+- See `person-photos.md` spec for API details
+
 Panel features:
 - Backdrop overlay (click to close)
 - Close button (X icon)
@@ -226,6 +263,10 @@ No user input validation required for this read-only feature.
 | Person with no name | Display "Unknown" as name |
 | Very long person list | Consider virtualization or pagination |
 | Network error | Show error message with retry option |
+| Person with no photos | Show placeholder avatar (gender-based or initials) |
+| Person with photos but no primary | Show first photo as thumbnail (or enforce primary) |
+| Photo upload fails | Show error message, keep gallery unchanged |
+| Photo delete fails | Show error message, photo remains in gallery |
 
 ## Security Considerations
 
@@ -253,9 +294,11 @@ None.
 - Existing `FamilyTree` and `Person` entities
 - Tree visualization page (`/tree/[id]`)
 - List trees feature (`/trees`)
+- `PersonPhoto` entity for photo storage
 
 ### Related specs
 
 - `list-trees.md` - Lists trees, clicking navigates here
 - `view-tree.md` - Tree visualization (linked from this page)
 - `create-tree.md` - Creating new trees
+- `person-photos.md` - Photo management APIs (upload, delete, set primary)
