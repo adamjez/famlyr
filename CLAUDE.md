@@ -4,7 +4,7 @@ This file provides context for Claude Code when working on the Famlyr project.
 
 ## Project Overview
 
-Famlyr is a family tree application for creating, managing, and visualizing lineage (family trees). It supports up to 1000 persons per tree.
+Famlyr is a family tree application for creating, managing, and visualizing lineage (family trees). It supports up to 10,000 persons per tree.
 
 ## Architecture
 
@@ -21,7 +21,8 @@ Famlyr is a family tree application for creating, managing, and visualizing line
 - All foreign keys are indexed for performance with large trees
 
 ### Performance Requirements
-- Optimized for **1000 persons** per family tree
+- Optimized for **10,000 persons** per family tree
+- **Sibling folding** - descendants collapsed by default for scalability
 - Use projection DTOs for tree views (minimal fields)
 - Single query loading to avoid N+1 problems
 

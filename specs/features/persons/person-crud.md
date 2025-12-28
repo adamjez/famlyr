@@ -33,10 +33,9 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 - [ ] Edit an existing person's details
 - [ ] Delete a person (cascade deletes photos and relationships)
 - [ ] Get a person's full details
-- [ ] At least one name (FirstName or LastName) must be provided
 - [ ] Support inline photo upload during create/edit
 - [ ] Notes field with markdown support
-- [ ] All biographical fields are optional (except name requirement)
+- [ ] All biographical fields are optional (names, dates, gender, notes)
 - [ ] Delete photos from a person
 - [ ] Set a photo as primary (only one primary per person)
 - [ ] Reorder photos for gallery display
@@ -72,15 +71,13 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| firstName | string | No* | Person's first name (max 100 chars) |
-| lastName | string | No* | Person's last name (max 100 chars) |
+| firstName | string | No | Person's first name (max 100 chars) |
+| lastName | string | No | Person's last name (max 100 chars) |
 | gender | string | No | Gender: Male, Female, Other, Unknown (default: Unknown) |
 | birthDate | string | No | Birth date (ISO 8601 date: YYYY-MM-DD) |
 | deathDate | string | No | Death date (ISO 8601 date: YYYY-MM-DD) |
 | notes | string | No | Free-form notes with markdown support (max 10,000 chars) |
 | photos | File[] | No | Photo files (JPEG, PNG, WebP; max 5MB each; max 20 files) |
-
-*At least one of firstName or lastName must be provided.
 
 **Response (201 Created):**
 
@@ -109,7 +106,6 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 
 | Status | Code | Description |
 |--------|------|-------------|
-| 400 | NAME_REQUIRED | Neither firstName nor lastName provided |
 | 400 | FIRST_NAME_TOO_LONG | firstName exceeds 100 characters |
 | 400 | LAST_NAME_TOO_LONG | lastName exceeds 100 characters |
 | 400 | NOTES_TOO_LONG | notes exceeds 10,000 characters |
@@ -142,15 +138,13 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| firstName | string | No* | Person's first name (max 100 chars) |
-| lastName | string | No* | Person's last name (max 100 chars) |
+| firstName | string | No | Person's first name (max 100 chars) |
+| lastName | string | No | Person's last name (max 100 chars) |
 | gender | string | No | Gender: Male, Female, Other, Unknown |
 | birthDate | string | No | Birth date (ISO 8601 date: YYYY-MM-DD, empty to clear) |
 | deathDate | string | No | Death date (ISO 8601 date: YYYY-MM-DD, empty to clear) |
 | notes | string | No | Free-form notes with markdown support (max 10,000 chars, empty to clear) |
 | photos | File[] | No | New photos to add (max 5MB each) |
-
-*At least one of firstName or lastName must be provided.
 
 **Notes:**
 - Only provided fields are updated; omitted fields remain unchanged
@@ -186,7 +180,6 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 
 | Status | Code | Description |
 |--------|------|-------------|
-| 400 | NAME_REQUIRED | Both firstName and lastName would be empty/null |
 | 400 | FIRST_NAME_TOO_LONG | firstName exceeds 100 characters |
 | 400 | LAST_NAME_TOO_LONG | lastName exceeds 100 characters |
 | 400 | NOTES_TOO_LONG | notes exceeds 10,000 characters |
@@ -672,8 +665,8 @@ builder.HasIndex(p => new { p.PersonId, p.IsPrimary });
 
 | Field | Rules |
 |-------|-------|
-| firstName | Optional, max 100 chars. At least one of firstName/lastName required. |
-| lastName | Optional, max 100 chars. At least one of firstName/lastName required. |
+| firstName | Optional, max 100 chars |
+| lastName | Optional, max 100 chars |
 | gender | Optional, must be valid Gender enum value |
 | birthDate | Optional, valid date, must be before deathDate if both provided |
 | deathDate | Optional, valid date, must be after birthDate if both provided |
@@ -691,8 +684,8 @@ builder.HasIndex(p => new { p.PersonId, p.IsPrimary });
 |----------|-------------------|
 | Create with firstName only | Valid, lastName remains null |
 | Create with lastName only | Valid, firstName remains null |
-| Create with neither name | Return 400 NAME_REQUIRED |
-| Edit to remove both names | Return 400 NAME_REQUIRED |
+| Create with neither name | Valid, both names remain null (unknown person) |
+| Edit to remove both names | Valid, both names set to null (unknown person) |
 | Create with future birthDate | Valid (user responsibility) |
 | deathDate before birthDate | Return 400 DEATH_BEFORE_BIRTH |
 | Upload 21 photos on create | Return 400 TOO_MANY_PHOTOS |

@@ -3,11 +3,13 @@
 > **Status:** Phase 1 Implemented
 > **GitHub Issue:** #TBD
 > **Author:** Adam Jež
-> **Last Updated:** 2025-12-27
+> **Last Updated:** 2025-12-28
 
 ## Overview
 
-The family tree viewer is the core visualization component of Famlyr. It renders an interactive, zoomable family tree using Canvas/WebGL (Pixi.js) for optimal performance with up to 1000 persons. The viewer supports mobile-first touch gestures, level-of-detail rendering based on zoom level, configurable focus mode, and provides navigation aids including a toggleable mini-map and person search.
+The family tree viewer is the core visualization component of Famlyr. It renders an interactive, zoomable family tree using Canvas/WebGL (Pixi.js) for optimal performance with up to 10,000 persons. The viewer supports mobile-first touch gestures, level-of-detail rendering based on zoom level, configurable focus mode, and provides navigation aids including a toggleable mini-map and person search.
+
+To handle large families efficiently, the viewer implements a **sibling folding system**: when siblings are displayed next to each other, their descendants (children, grandchildren, etc.) are collapsed by default. Users can expand/unfold individual sibling branches to explore deeper lineages on demand.
 
 ## User Stories
 
@@ -20,7 +22,10 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 - As a user, I want to see century/decade indicators when fully zoomed out so that I understand the time span
 - As a user, I want a mini-map to see where I am in a large tree
 - As a user, I want to search for a person by name so that I can quickly navigate to them
-- As a user, I want the tree to load quickly even with 1000 persons
+- As a user, I want the tree to load quickly even with 10,000 persons
+- As a user, I want sibling descendants to be collapsed by default so that I can see all siblings at once without visual clutter
+- As a user, I want to expand/unfold a sibling's descendants so that I can explore their branch of the family tree
+- As a user, I want to collapse a sibling's descendants back so that I can focus on other parts of the tree
 
 ## Requirements
 
@@ -32,8 +37,17 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 - [ ] Render parent-child connections: vertical line from midpoint between parents down to children
 - [x] Render spouse connections as horizontal line ONLY when couple has no children
 - [ ] When parents have children: the horizontal parent connection and vertical child line form a "T" or inverted "Y" shape
-- [ ] Support trees with up to 1000 persons
+- [ ] Support trees with up to 10,000 persons
 - [ ] Color-code nodes by gender (configurable colors)
+
+#### Sibling Folding
+- [ ] When multiple siblings are displayed, their descendants are collapsed by default
+- [ ] Show fold indicator on sibling nodes that have descendants (e.g., "▶ 12 descendants")
+- [ ] Click fold indicator to expand/unfold that sibling's descendants
+- [ ] Click again to collapse descendants back
+- [ ] Expanded state persists during pan/zoom within the session
+- [ ] Only the focused person's direct lineage (ancestors and descendants) is fully expanded by default
+- [ ] Animate expand/collapse transitions (300ms)
 
 #### Navigation
 - [x] Zoom in/out with mouse wheel or trackpad
@@ -50,9 +64,10 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 - [ ] User can select any person as the focus
 - [ ] Focused person appears at vertical center
 - [ ] Ancestors render above the focus person
-- [ ] Descendants render below the focus person
-- [ ] Siblings and their descendants visible at the same level
+- [ ] Descendants render below the focus person (fully expanded by default)
+- [ ] Siblings visible at the same level with their descendants collapsed
 - [ ] Visual indicator (highlight ring) for currently focused person
+- [ ] When focus changes, reset fold states: new focus's lineage expanded, siblings collapsed
 
 #### Levels of Detail (LOD)
 - [ ] **LOD 1 (Zoom < 0.2)**: Tree shape only - small colored rectangles by gender, century/decade row indicators
@@ -90,11 +105,12 @@ The family tree viewer is the core visualization component of Famlyr. It renders
 ### Non-functional
 
 #### Performance
-- [ ] Initial render < 500ms for 1000 persons
-- [ ] Maintain 60fps during pan/zoom with 1000 persons
+- [ ] Initial render < 500ms for 1000 persons, < 2000ms for 10,000 persons
+- [ ] Maintain 60fps during pan/zoom with 10,000 persons (with folding)
 - [ ] Viewport culling: only render visible nodes + buffer zone
-- [ ] Memory usage < 100MB for 1000 persons
-- [ ] Search response < 50ms after keystroke
+- [ ] Memory usage < 100MB for 1000 persons, < 500MB for 10,000 persons
+- [ ] Search response < 100ms after keystroke for 10,000 persons
+- [ ] Expand/collapse animation completes in < 300ms
 
 #### Accessibility
 - [ ] Keyboard navigation between nodes (arrow keys)
@@ -148,7 +164,16 @@ Rationale:
    - Vertical: 150px between generations
    - Couple gap: 50px between spouses
 
-5. **Wide Tree Handling**: When siblings exceed viewport width
+5. **Sibling Folding**: For scalability with large families
+   - By default, only the focused person's direct lineage is expanded
+   - Siblings of the focused person are shown but their descendants are collapsed
+   - Each sibling node shows a fold indicator: "▶ 12" (collapsed) or "▼" (expanded)
+   - Click the fold indicator to toggle expand/collapse for that sibling's branch
+   - Descendant count includes all generations (children + grandchildren + ...)
+   - Collapsed siblings still show their spouse(s) on the same layer
+   - When a sibling is expanded, their children appear with their own fold indicators
+
+6. **Wide Tree Handling**: When siblings exceed viewport width
    - Collapse distant siblings into "+N siblings" indicator
    - Expand on click to reveal
 
@@ -207,6 +232,7 @@ interface TreeViewState {
   searchResults: PersonModel[];
   isMinimapVisible: boolean;
   currentLOD: 1 | 2 | 3;
+  expandedNodeIds: Set<string>;  // IDs of nodes whose descendants are visible
 }
 ```
 
@@ -222,7 +248,9 @@ interface TreeNode {
   spouse?: TreeNode;
   children: TreeNode[];
   parents: TreeNode[];
-  isCollapsed: boolean;
+  isCollapsed: boolean;          // Whether this node's descendants are hidden
+  descendantCount: number;       // Total count of all descendants (for fold indicator)
+  isFocusLineage: boolean;       // Whether this node is in the focused person's direct lineage
 }
 
 interface TreeLayout {
@@ -404,7 +432,7 @@ Photos are stored via the `PersonPhoto` entity. See `person-photos.md` spec for 
 | Key | Action |
 |-----|--------|
 | Arrow Up | Move selection to parent (first parent if two) |
-| Arrow Down | Move selection to first child |
+| Arrow Down | Move selection to first child (expands if collapsed) |
 | Arrow Left | Move to previous sibling or spouse |
 | Arrow Right | Move to next sibling or spouse |
 | Enter | Open detail panel for selected person |
@@ -414,6 +442,9 @@ Photos are stored via the `PersonPhoto` entity. See `person-photos.md` spec for 
 | 0 | Reset zoom to fit entire tree |
 | / | Focus search bar |
 | F | Set selected person as focus |
+| Space | Toggle expand/collapse descendants of selected person |
+| E | Expand all siblings at current level |
+| C | Collapse all siblings at current level |
 
 ## Edge Cases
 
@@ -429,8 +460,14 @@ Photos are stored via the `PersonPhoto` entity. See `person-photos.md` spec for 
 | Circular relationship (data error) | Detect cycle, log warning, break at detected point |
 | Person with null firstName AND lastName | Display "Unknown Person" |
 | Person with null birthDate | Show "Unknown" for year, exclude from timeline grouping |
-| Very deep tree (20+ generations) | Virtual scrolling, collapse distant generations |
+| Very deep tree (20+ generations) | Virtual scrolling, collapse distant generations, fold indicators show deep counts |
 | Very wide tree (50+ siblings) | Collapse with "+N more" indicator, expand on click |
+| Large tree (10,000 persons) | Most branches collapsed by default, only focused lineage expanded |
+| Sibling with 0 descendants | No fold indicator shown, node appears as leaf |
+| Sibling with 500+ descendants | Show count as "500+" to avoid layout shifts |
+| Expanding multiple siblings | Each expands independently, layout recalculates smoothly |
+| All siblings expanded at once | May cause horizontal overflow, show scroll hint |
+| Focused person is deeply nested | Auto-expand ancestor path to show focus clearly |
 | Empty tree (no persons) | Show empty state with "Add first person" CTA |
 | Single person tree | Render centered with "Add family member" prompt |
 | Slow network | Show loading skeleton, progressive rendering |
@@ -471,12 +508,15 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 
 ## Performance Optimization Strategies
 
-1. **Viewport Culling**: Only create Pixi sprites for nodes in viewport + 200px buffer
-2. **Object Pooling**: Reuse sprite objects when nodes enter/leave viewport
-3. **Texture Atlasing**: Single sprite sheet for node backgrounds and icons
-4. **Debounced Layout**: Recalculate layout only on zoom end, not during gesture
-5. **Web Worker**: Calculate layout in worker thread for trees > 500 persons
-6. **Request Animation Frame**: All rendering updates batched to 60fps
+1. **Sibling Folding**: Primary strategy for 10,000 person trees - most descendants hidden by default
+2. **Viewport Culling**: Only create Pixi sprites for nodes in viewport + 200px buffer
+3. **Object Pooling**: Reuse sprite objects when nodes enter/leave viewport
+4. **Texture Atlasing**: Single sprite sheet for node backgrounds and icons
+5. **Debounced Layout**: Recalculate layout only on zoom end, not during gesture
+6. **Web Worker**: Calculate layout in worker thread for trees > 500 persons
+7. **Request Animation Frame**: All rendering updates batched to 60fps
+8. **Lazy Descendant Counting**: Calculate descendant counts only when needed (on first expand attempt)
+9. **Incremental Layout**: When expanding a branch, only recalculate affected subtree positions
 
 ## Out of Scope
 
@@ -495,12 +535,14 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 
 ## Open Questions
 
-- [ ] What is the maximum supported tree size beyond 1000? (hard limit for memory?)
-- [ ] Should focus mode persist in URL for shareable links?
+- [ ] Should focus mode and expanded node states persist in URL for shareable links?
 - [ ] How to display half-siblings (same one parent, different other parent)?
 - [ ] Should we support landscape orientation lock on mobile for better viewing?
 - [ ] Is fuzzy search sufficient or do we need phonetic matching (Soundex) for names?
 - [ ] Should there be a "fit to screen" button that auto-zooms to show all persons?
+- [ ] Should fold state be persisted across sessions (localStorage)?
+- [ ] What's the ideal animation for expanding/collapsing branches?
+- [ ] Should there be a "expand all" / "collapse all" global toggle?
 
 ## Implementation Phases
 
@@ -520,6 +562,15 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 - Two-finger pan gesture
 - Touch-optimized node sizes
 - Responsive container sizing
+
+### Phase 2.5: Sibling Folding (Large Tree Support)
+- Descendant counting for each node
+- Fold indicator rendering (▶/▼ with count)
+- Click handler for expand/collapse toggle
+- Animated transitions for fold state changes
+- State management for expanded nodes
+- Automatic expansion of focused lineage
+- Keyboard shortcuts (Space, E, C)
 
 ### Phase 3: Level of Detail
 - LOD manager based on zoom thresholds
