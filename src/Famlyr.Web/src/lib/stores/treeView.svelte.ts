@@ -1,6 +1,6 @@
 import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
 import type { TreeLayout, Viewport, TreeNode } from '$lib/types/tree';
-import { ZOOM_MIN, ZOOM_MAX } from '$lib/types/tree';
+import { ZOOM_MAX } from '$lib/types/tree';
 
 function createTreeViewState() {
     let tree = $state<FamilyTreeModel | null>(null);
@@ -13,6 +13,8 @@ function createTreeViewState() {
         width: 0,
         height: 0
     });
+
+    let fitZoom = $state<number>(0.1);
 
     let selectedPersonId = $state<string | null>(null);
     let focusedPersonId = $state<string | null>(null);
@@ -27,6 +29,37 @@ function createTreeViewState() {
         return layout.nodes.get(selectedPersonId) ?? null;
     });
 
+    function calculateFitZoom(): number {
+        if (!layout || viewport.width === 0 || viewport.height === 0) {
+            return 0.1;
+        }
+
+        const bounds = layout.bounds;
+        const treeWidth = bounds.width;
+        const treeHeight = bounds.height;
+
+        const zoomX = viewport.width / treeWidth;
+        const zoomY = viewport.height / treeHeight;
+
+        const calculatedZoom = Math.min(zoomX, zoomY) * 0.9;
+        return Math.max(0.05, Math.min(calculatedZoom, 1));
+    }
+
+    function calculateFitPosition(zoom: number): { x: number; y: number } {
+        if (!layout) {
+            return { x: 0, y: 0 };
+        }
+
+        const bounds = layout.bounds;
+        const centerX = (bounds.minX + bounds.maxX) / 2;
+        const centerY = (bounds.minY + bounds.maxY) / 2;
+
+        return {
+            x: -centerX * zoom,
+            y: -centerY * zoom
+        };
+    }
+
     return {
         get tree() { return tree; },
         get layout() { return layout; },
@@ -35,6 +68,7 @@ function createTreeViewState() {
         get focusedPersonId() { return focusedPersonId; },
         get selectedPerson() { return selectedPerson; },
         get selectedNode() { return selectedNode; },
+        get fitZoom() { return fitZoom; },
 
         setTree(newTree: FamilyTreeModel) {
             tree = newTree;
@@ -45,10 +79,12 @@ function createTreeViewState() {
 
         setLayout(newLayout: TreeLayout) {
             layout = newLayout;
+            fitZoom = calculateFitZoom();
         },
 
         setViewport(updates: Partial<Viewport>) {
             viewport = { ...viewport, ...updates };
+            fitZoom = calculateFitZoom();
         },
 
         pan(deltaX: number, deltaY: number) {
@@ -56,7 +92,8 @@ function createTreeViewState() {
         },
 
         zoom(newZoom: number, centerX?: number, centerY?: number) {
-            const clampedZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom));
+            const minZoom = fitZoom;
+            const clampedZoom = Math.max(minZoom, Math.min(ZOOM_MAX, newZoom));
             const zoomRatio = clampedZoom / viewport.zoom;
 
             const pivotX = (centerX ?? viewport.width / 2) - viewport.width / 2;
@@ -78,8 +115,16 @@ function createTreeViewState() {
             focusedPersonId = personId;
         },
 
+        fitToScreen() {
+            fitZoom = calculateFitZoom();
+            const position = calculateFitPosition(fitZoom);
+            viewport = { ...viewport, x: position.x, y: position.y, zoom: fitZoom };
+        },
+
         resetViewport() {
-            viewport = { ...viewport, x: 0, y: 0, zoom: 1 };
+            fitZoom = calculateFitZoom();
+            const position = calculateFitPosition(fitZoom);
+            viewport = { ...viewport, x: position.x, y: position.y, zoom: fitZoom };
         }
     };
 }

@@ -45,6 +45,7 @@
 
         if (treeViewState.layout) {
             renderer.render(treeViewState.layout);
+            treeViewState.fitToScreen();
             renderer.updateViewport(treeViewState.viewport);
         }
 

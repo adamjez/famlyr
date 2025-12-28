@@ -52,6 +52,7 @@ export interface LayoutConfig {
     siblingGap: number;
     generationGap: number;
     spouseGap: number;
+    branchGap: number;
     nodeWidth: number;
     nodeHeight: number;
     padding: number;
@@ -61,6 +62,7 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
     siblingGap: 200,
     generationGap: 150,
     spouseGap: 50,
+    branchGap: 100,
     nodeWidth: 160,
     nodeHeight: 80,
     padding: 100
