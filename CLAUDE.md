@@ -47,6 +47,10 @@ dotnet ef migrations add <MigrationName> --project src/Famlyr.Infrastructure --s
 dotnet ef database update --project src/Famlyr.Infrastructure --startup-project src/Famlyr.Api
 ```
 
+## Development Workflow
+
+- Use **git worktrees** when implementing features to keep the main worktree clean for quick context switches
+
 ## Code Conventions
 
 - Avoid excessive comments - code should be self-explanatory; don't add section divider comments
