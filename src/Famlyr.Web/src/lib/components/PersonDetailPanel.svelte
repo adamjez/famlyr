@@ -1,6 +1,6 @@
 <script lang="ts">
-    import type { PersonModel, PersonRelationshipsResponse, PersonSearchResultModel, Gender } from '$lib/types/api';
-    import { getRelationships, addRelationship, removeRelationship } from '$lib/api/persons';
+    import type { PersonModel, PersonRelationshipsResponse, PersonSearchResultModel, PersonDetailModel, Gender } from '$lib/types/api';
+    import { getRelationships, addRelationship, removeRelationship, getPerson, deletePhoto, setPrimaryPhoto, updatePerson } from '$lib/api/persons';
     import { showToast } from '$lib/stores/toast.svelte';
     import PersonSearch from './PersonSearch.svelte';
 
@@ -21,6 +21,11 @@
     let selectedRelationType = $state<'Parent' | 'Child' | 'Spouse'>('Parent');
     let isSubmitting = $state(false);
     let deletingRelationshipId = $state<string | null>(null);
+    let personDetail = $state<PersonDetailModel | null>(null);
+    let isUploadingPhoto = $state(false);
+    let deletingPhotoId = $state<string | null>(null);
+    let settingPrimaryPhotoId = $state<string | null>(null);
+    let fileInput: HTMLInputElement | null = $state(null);
 
     const excludePersonIds = $derived(() => {
         if (!relationships) return [person.id];
@@ -34,6 +39,7 @@
 
     $effect(() => {
         loadRelationships();
+        loadPersonDetail();
     });
 
     async function loadRelationships() {
@@ -45,6 +51,64 @@
         } finally {
             isLoadingRelationships = false;
         }
+    }
+
+    async function loadPersonDetail() {
+        try {
+            personDetail = await getPerson(treeId, person.id);
+        } catch {
+            // Silently fail - photos just won't show
+        }
+    }
+
+    async function handleSetPrimaryPhoto(photoId: string) {
+        settingPrimaryPhotoId = photoId;
+        try {
+            await setPrimaryPhoto(treeId, person.id, photoId);
+            personDetail = await getPerson(treeId, person.id);
+            showToast('Primary photo updated');
+        } catch {
+            showToast('Failed to set primary photo', 'error');
+        } finally {
+            settingPrimaryPhotoId = null;
+        }
+    }
+
+    async function handleDeletePhoto(photoId: string) {
+        deletingPhotoId = photoId;
+        try {
+            await deletePhoto(treeId, person.id, photoId);
+            personDetail = await getPerson(treeId, person.id);
+            showToast('Photo deleted');
+        } catch {
+            showToast('Failed to delete photo', 'error');
+        } finally {
+            deletingPhotoId = null;
+        }
+    }
+
+    async function handleFileUpload(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (!input.files?.length) return;
+
+        isUploadingPhoto = true;
+        try {
+            const files = Array.from(input.files);
+            await updatePerson(treeId, person.id, { photos: files });
+            personDetail = await getPerson(treeId, person.id);
+            showToast('Photos uploaded');
+        } catch (e) {
+            showToast(e instanceof Error ? e.message : 'Failed to upload photos', 'error');
+        } finally {
+            isUploadingPhoto = false;
+            input.value = '';
+        }
+    }
+
+    function getInitials(firstName: string | null, lastName: string | null): string {
+        const first = firstName?.[0] ?? '';
+        const last = lastName?.[0] ?? '';
+        return (first + last).toUpperCase() || '?';
     }
 
     function formatName(firstName: string | null, lastName: string | null): string {
@@ -110,7 +174,8 @@
             lastName: relatedPerson.lastName,
             gender: relatedPerson.gender as Gender,
             birthDate: null,
-            deathDate: null
+            deathDate: null,
+            primaryPhotoUrl: null
         });
     }
 </script>
@@ -125,7 +190,16 @@
 
 <div class="detail-panel" role="dialog" aria-modal="true" aria-label="Person details">
     <header class="panel-header">
-        <h3>{formatName(person.firstName, person.lastName)}</h3>
+        <div class="header-content">
+            {#if person.primaryPhotoUrl}
+                <img src={person.primaryPhotoUrl} alt="" class="header-photo" />
+            {:else}
+                <div class="header-avatar" data-gender={person.gender}>
+                    {getInitials(person.firstName, person.lastName)}
+                </div>
+            {/if}
+            <h3>{formatName(person.firstName, person.lastName)}</h3>
+        </div>
         <button class="close-btn" onclick={onClose} aria-label="Close panel">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -154,6 +228,67 @@
                     <dd>{formatDate(person.deathDate)}</dd>
                 </div>
             {/if}
+
+            <!-- Photo Gallery -->
+            <div class="info-item">
+                <dt>Photos</dt>
+                <dd>
+                    {#if personDetail?.photos && personDetail.photos.length > 0}
+                        <div class="photo-gallery">
+                            {#each personDetail.photos as photo}
+                                <div class="photo-item">
+                                    <img src={photo.imageUrl} alt="" class="photo-image" />
+                                    {#if photo.isPrimary}
+                                        <span class="primary-badge">Primary</span>
+                                    {/if}
+                                    <div class="photo-actions">
+                                        {#if !photo.isPrimary}
+                                            <button
+                                                class="photo-action-btn"
+                                                onclick={() => handleSetPrimaryPhoto(photo.id)}
+                                                disabled={settingPrimaryPhotoId === photo.id}
+                                                title="Set as primary"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                                </svg>
+                                            </button>
+                                        {/if}
+                                        <button
+                                            class="photo-action-btn photo-action-delete"
+                                            onclick={() => handleDeletePhoto(photo.id)}
+                                            disabled={deletingPhotoId === photo.id}
+                                            title="Delete photo"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {:else}
+                        <p class="empty-photos">No photos yet</p>
+                    {/if}
+                    <button
+                        class="upload-btn"
+                        onclick={() => fileInput?.click()}
+                        disabled={isUploadingPhoto}
+                    >
+                        {isUploadingPhoto ? 'Uploading...' : '+ Upload Photo'}
+                    </button>
+                    <input
+                        bind:this={fileInput}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        onchange={handleFileUpload}
+                        class="hidden-input"
+                    />
+                </dd>
+            </div>
 
             {#if isLoadingRelationships}
                 <div class="info-item">
@@ -583,5 +718,146 @@
     .w-full {
         width: 100%;
         text-align: center;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .header-photo {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .header-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .header-avatar[data-gender="Male"] { background-color: #525f80; }
+    .header-avatar[data-gender="Female"] { background-color: #9a8a6c; }
+    .header-avatar[data-gender="Other"] { background-color: #317876; }
+    .header-avatar[data-gender="Unknown"] { background-color: #868e96; }
+
+    .photo-gallery {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .photo-item {
+        position: relative;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: var(--color-neutral-100);
+    }
+
+    .photo-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .primary-badge {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        padding: 2px 6px;
+        font-size: 0.625rem;
+        font-weight: 600;
+        color: white;
+        background-color: var(--color-primary-600, #2563eb);
+        border-radius: 4px;
+    }
+
+    .photo-actions {
+        position: absolute;
+        bottom: 4px;
+        right: 4px;
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 150ms;
+    }
+
+    .photo-item:hover .photo-actions {
+        opacity: 1;
+    }
+
+    .photo-action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        border-radius: 4px;
+        background-color: white;
+        color: var(--color-neutral-600);
+        cursor: pointer;
+        transition: all 150ms;
+    }
+
+    .photo-action-btn:hover:not(:disabled) {
+        background-color: var(--color-neutral-100);
+        color: var(--color-neutral-800);
+    }
+
+    .photo-action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .photo-action-delete:hover:not(:disabled) {
+        background-color: #fef2f2;
+        color: #dc2626;
+    }
+
+    .empty-photos {
+        font-size: 0.875rem;
+        color: var(--color-neutral-500);
+        margin: 0 0 12px 0;
+    }
+
+    .upload-btn {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px dashed var(--color-neutral-300);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--color-neutral-600);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 150ms;
+    }
+
+    .upload-btn:hover:not(:disabled) {
+        border-color: var(--color-primary-500);
+        color: var(--color-primary-600);
+    }
+
+    .upload-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .hidden-input {
+        display: none;
     }
 </style>

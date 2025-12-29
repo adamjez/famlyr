@@ -10,4 +10,5 @@ public class PersonModel
     public Gender Gender { get; init; }
     public string? BirthDate { get; init; }
     public string? DeathDate { get; init; }
+    public string? PrimaryPhotoUrl { get; init; }
 }

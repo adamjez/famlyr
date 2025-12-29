@@ -75,6 +75,34 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 3.0;
 
+export type LODLevel = 1 | 2 | 3;
+
+export interface LODConfig {
+    nodeWidth: number;
+    nodeHeight: number;
+    showPhoto: boolean;
+    showName: boolean;
+    showYears: boolean;
+    truncateName: number | null;
+}
+
+export const LOD_CONFIGS: Record<LODLevel, LODConfig> = {
+    1: { nodeWidth: 20, nodeHeight: 20, showPhoto: false, showName: false, showYears: false, truncateName: null },
+    2: { nodeWidth: 80, nodeHeight: 50, showPhoto: false, showName: true, showYears: true, truncateName: 12 },
+    3: { nodeWidth: 160, nodeHeight: 80, showPhoto: true, showName: true, showYears: true, truncateName: null }
+};
+
+export const LOD_THRESHOLDS = {
+    lod1Max: 0.2,
+    lod2Max: 0.5
+};
+
+export function getLODLevel(zoom: number): LODLevel {
+    if (zoom < LOD_THRESHOLDS.lod1Max) return 1;
+    if (zoom < LOD_THRESHOLDS.lod2Max) return 2;
+    return 3;
+}
+
 export interface FoldState {
     expandedNodeIds: Set<string>;
 }

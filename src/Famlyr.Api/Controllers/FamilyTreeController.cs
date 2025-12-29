@@ -52,7 +52,8 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                     p.BirthDay,
                     p.DeathYear,
                     p.DeathMonth,
-                    p.DeathDay
+                    p.DeathDay,
+                    PrimaryPhoto = p.Photos.Where(ph => ph.IsPrimary).Select(ph => ph.ImageData).FirstOrDefault()
                 }).ToList(),
                 Relationships = ft.Persons
                     .SelectMany(p => p.RelationshipsAsSubject)
@@ -86,7 +87,8 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                 LastName = p.LastName,
                 Gender = p.Gender,
                 BirthDate = DateHelper.FormatDate(p.BirthYear, p.BirthMonth, p.BirthDay),
-                DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay)
+                DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay),
+                PrimaryPhotoUrl = p.PrimaryPhoto != null ? ImageHelper.ToDataUrl(p.PrimaryPhoto) : null
             }).ToList(),
             Relationships = result.Relationships
         });
@@ -119,7 +121,8 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                         p.BirthDay,
                         p.DeathYear,
                         p.DeathMonth,
-                        p.DeathDay
+                        p.DeathDay,
+                        PrimaryPhoto = p.Photos.Where(ph => ph.IsPrimary).Select(ph => ph.ImageData).FirstOrDefault()
                     }).ToList(),
                 Relationships = ft.Persons
                     .SelectMany(p => p.RelationshipsAsSubject)
@@ -145,7 +148,8 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             LastName = p.LastName,
             Gender = p.Gender,
             BirthDate = DateHelper.FormatDate(p.BirthYear, p.BirthMonth, p.BirthDay),
-            DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay)
+            DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay),
+            PrimaryPhotoUrl = p.PrimaryPhoto != null ? ImageHelper.ToDataUrl(p.PrimaryPhoto) : null
         }).ToList();
 
         var allYears = result.Persons

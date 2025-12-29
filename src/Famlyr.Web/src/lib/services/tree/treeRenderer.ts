@@ -1,6 +1,7 @@
-import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent } from 'pixi.js';
-import type { TreeLayout, TreeNode, TreeConnection, Viewport } from '$lib/types/tree';
-import type { Gender } from '$lib/types/api';
+import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent, Sprite, Texture, Assets } from 'pixi.js';
+import type { TreeLayout, TreeNode, TreeConnection, Viewport, LODLevel } from '$lib/types/tree';
+import { LOD_CONFIGS } from '$lib/types/tree';
+import type { Gender, PersonModel } from '$lib/types/api';
 
 const COLORS = {
     nodeMale: 0x525f80,
@@ -41,9 +42,15 @@ export class TreeRenderer {
     private selectedNodeId: string | null = null;
     private highlightedParentIds: Set<string> = new Set();
     private highlightedChildIds: Set<string> = new Set();
+    private photoTextures: Map<string, Texture> = new Map();
+    private currentLOD: LODLevel = 3;
 
     constructor(options: TreeRendererOptions = {}) {
         this.options = options;
+    }
+
+    setLOD(lod: LODLevel): void {
+        this.currentLOD = lod;
     }
 
     async initialize(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
@@ -157,6 +164,103 @@ export class TreeRenderer {
         container.eventMode = 'static';
         container.cursor = 'pointer';
 
+        // Render based on current LOD
+        switch (this.currentLOD) {
+            case 1:
+                this.renderNodeLOD1(container, node);
+                break;
+            case 2:
+                this.renderNodeLOD2(container, node);
+                break;
+            case 3:
+            default:
+                this.renderNodeLOD3(container, node);
+                break;
+        }
+
+        container.on('pointerdown', (event: FederatedPointerEvent) => {
+            event.stopPropagation();
+            this.options.onNodeClick?.(node.id);
+        });
+
+        this.treeContainer.addChild(container);
+        this.nodeSprites.set(node.id, container);
+    }
+
+    private renderNodeLOD1(container: Container, node: TreeNode): void {
+        // Simple colored rectangle at LOD 1
+        const bg = new Graphics();
+        const color = getNodeColor(node.person.gender);
+        bg.roundRect(0, 0, node.width, node.height, 2);
+        bg.fill(color);
+
+        if (node.id === this.selectedNodeId) {
+            bg.roundRect(0, 0, node.width, node.height, 2);
+            bg.stroke({ width: 2, color: COLORS.nodeSelected });
+        } else if (this.highlightedParentIds.has(node.id)) {
+            bg.roundRect(0, 0, node.width, node.height, 2);
+            bg.stroke({ width: 2, color: COLORS.nodeParent });
+        } else if (this.highlightedChildIds.has(node.id)) {
+            bg.roundRect(0, 0, node.width, node.height, 2);
+            bg.stroke({ width: 2, color: COLORS.nodeChild });
+        }
+
+        container.addChild(bg);
+    }
+
+    private renderNodeLOD2(container: Container, node: TreeNode): void {
+        // Medium detail - name + years
+        const lodConfig = LOD_CONFIGS[2];
+        const bg = new Graphics();
+        const color = getNodeColor(node.person.gender);
+        bg.roundRect(0, 0, node.width, node.height, 4);
+        bg.fill(color);
+
+        if (node.id === this.selectedNodeId) {
+            bg.roundRect(0, 0, node.width, node.height, 4);
+            bg.stroke({ width: 2, color: COLORS.nodeSelected });
+        } else if (this.highlightedParentIds.has(node.id)) {
+            bg.roundRect(0, 0, node.width, node.height, 4);
+            bg.stroke({ width: 2, color: COLORS.nodeParent });
+        } else if (this.highlightedChildIds.has(node.id)) {
+            bg.roundRect(0, 0, node.width, node.height, 4);
+            bg.stroke({ width: 2, color: COLORS.nodeChild });
+        }
+
+        container.addChild(bg);
+
+        // Truncated name
+        let displayName = this.formatName(node.person.firstName, node.person.lastName);
+        if (lodConfig.truncateName && displayName.length > lodConfig.truncateName) {
+            displayName = displayName.substring(0, lodConfig.truncateName - 1) + '…';
+        }
+        const nameStyle = new TextStyle({
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 10,
+            fontWeight: '600',
+            fill: COLORS.textPrimary
+        });
+        const nameText = new Text({ text: displayName, style: nameStyle });
+        nameText.position.set(4, 4);
+        container.addChild(nameText);
+
+        // Birth year only
+        const birthYear = node.person.birthDate ? new Date(node.person.birthDate).getFullYear() : null;
+        if (birthYear) {
+            const yearsStyle = new TextStyle({
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 9,
+                fill: COLORS.textSecondary
+            });
+            const yearsText = new Text({ text: String(birthYear), style: yearsStyle });
+            yearsText.position.set(4, node.height - 14);
+            container.addChild(yearsText);
+        }
+    }
+
+    private renderNodeLOD3(container: Container, node: TreeNode): void {
+        // Full detail with photo
+        const lodConfig = LOD_CONFIGS[3];
         const bg = new Graphics();
         const color = getNodeColor(node.person.gender);
         bg.roundRect(0, 0, node.width, node.height, 8);
@@ -175,42 +279,148 @@ export class TreeRenderer {
 
         container.addChild(bg);
 
+        // Photo or avatar
+        const photoSize = 40;
+        const photoX = 8;
+        const photoY = (node.height - photoSize) / 2;
+
+        if (lodConfig.showPhoto && node.person.primaryPhotoUrl) {
+            this.renderPhoto(container, node.person, photoX, photoY, photoSize);
+        } else if (lodConfig.showPhoto) {
+            this.renderPlaceholderAvatar(container, node.person, photoX, photoY, photoSize);
+        }
+
+        // Text positioning (shifted right if photo shown)
+        const textX = lodConfig.showPhoto ? photoX + photoSize + 8 : 8;
+        const textWidth = node.width - textX - 8;
+
+        // Name
+        const nameY = 10;
         const displayName = this.formatName(node.person.firstName, node.person.lastName);
         const nameStyle = new TextStyle({
             fontFamily: 'Inter, sans-serif',
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: '600',
             fill: COLORS.textPrimary,
             wordWrap: true,
-            wordWrapWidth: node.width - 16
+            wordWrapWidth: textWidth
         });
         const nameText = new Text({ text: displayName, style: nameStyle });
-        nameText.position.set(8, 8);
+        nameText.position.set(textX, nameY);
         container.addChild(nameText);
 
+        // Years - positioned below name text
         const years = this.formatYears(node.person.birthDate, node.person.deathDate);
         if (years) {
+            const yearsY = nameY + nameText.height + 2;
             const yearsStyle = new TextStyle({
                 fontFamily: 'Inter, sans-serif',
-                fontSize: 12,
+                fontSize: 11,
                 fill: COLORS.textSecondary
             });
             const yearsText = new Text({ text: years, style: yearsStyle });
-            yearsText.position.set(8, node.height - 24);
+            yearsText.position.set(textX, yearsY);
             container.addChild(yearsText);
         }
 
-        container.on('pointerdown', (event: FederatedPointerEvent) => {
-            event.stopPropagation();
-            this.options.onNodeClick?.(node.id);
-        });
-
+        // Fold indicator
         if (node.descendantCount > 0) {
             this.renderFoldIndicator(container, node);
         }
+    }
 
-        this.treeContainer.addChild(container);
-        this.nodeSprites.set(node.id, container);
+    private renderPhoto(container: Container, person: PersonModel, x: number, y: number, size: number): void {
+        if (!person.primaryPhotoUrl) return;
+
+        // Check if texture is already loaded
+        const cachedTexture = this.photoTextures.get(person.id);
+        if (cachedTexture) {
+            // Texture is already loaded, render it
+            this.renderPhotoSprite(container, cachedTexture, x, y, size);
+            return;
+        }
+
+        // Show placeholder while loading
+        this.renderPlaceholderAvatar(container, person, x, y, size);
+
+        // Load texture asynchronously
+        const photoUrl = person.primaryPhotoUrl;
+        const personId = person.id;
+        Assets.load(photoUrl).then((texture: Texture) => {
+            this.photoTextures.set(personId, texture);
+            // Re-render if layout still exists (triggers full re-render to show photo)
+            if (this.layout) {
+                this.render(this.layout);
+            }
+        }).catch(() => {
+            // Failed to load, placeholder remains
+        });
+    }
+
+    private renderPhotoSprite(container: Container, texture: Texture, x: number, y: number, size: number): void {
+        // Create circular mask
+        const mask = new Graphics();
+        mask.circle(x + size / 2, y + size / 2, size / 2);
+        mask.fill(0xffffff);
+        container.addChild(mask);
+
+        // Create sprite with "cover" behavior (fill circle, maintain aspect ratio)
+        const sprite = new Sprite(texture);
+        const textureWidth = texture.width;
+        const textureHeight = texture.height;
+
+        if (textureWidth > 0 && textureHeight > 0) {
+            const aspectRatio = textureWidth / textureHeight;
+
+            if (aspectRatio > 1) {
+                // Wider than tall - fit height, crop width
+                sprite.height = size;
+                sprite.width = size * aspectRatio;
+                sprite.position.set(x - (sprite.width - size) / 2, y);
+            } else {
+                // Taller than wide - fit width, crop height
+                sprite.width = size;
+                sprite.height = size / aspectRatio;
+                sprite.position.set(x, y - (sprite.height - size) / 2);
+            }
+        } else {
+            // Fallback if texture dimensions not available
+            sprite.width = size;
+            sprite.height = size;
+            sprite.position.set(x, y);
+        }
+
+        sprite.mask = mask;
+        container.addChild(sprite);
+    }
+
+    private renderPlaceholderAvatar(container: Container, person: PersonModel, x: number, y: number, size: number): void {
+        // Background circle
+        const avatarBg = new Graphics();
+        const color = getNodeColor(person.gender);
+        avatarBg.circle(x + size / 2, y + size / 2, size / 2);
+        avatarBg.fill(color);
+        avatarBg.stroke({ width: 2, color: 0xffffff });
+        container.addChild(avatarBg);
+
+        // Initials
+        const initials = this.getInitials(person.firstName, person.lastName);
+        const initialsStyle = new TextStyle({
+            fontFamily: 'Inter, sans-serif',
+            fontSize: size * 0.35,
+            fontWeight: '600',
+            fill: 0xffffff
+        });
+        const initialsText = new Text({ text: initials, style: initialsStyle });
+        initialsText.anchor.set(0.5);
+        initialsText.position.set(x + size / 2, y + size / 2);
+        container.addChild(initialsText);
+    }
+
+    private getInitials(firstName: string | null, lastName: string | null): string {
+        const first = firstName?.[0] ?? '';
+        const last = lastName?.[0] ?? '';
+        return (first + last).toUpperCase() || '?';
     }
 
     private renderFoldIndicator(container: Container, node: TreeNode): void {
@@ -321,6 +531,12 @@ export class TreeRenderer {
     }
 
     destroy(): void {
+        // Clean up photo textures
+        for (const texture of this.photoTextures.values()) {
+            texture.destroy();
+        }
+        this.photoTextures.clear();
+
         this.app?.destroy(true, { children: true, texture: true });
         this.app = null;
         this.treeContainer = null;

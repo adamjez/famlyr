@@ -8,6 +8,7 @@ export interface PersonModel {
     gender: Gender;
     birthDate: string | null;
     deathDate: string | null;
+    primaryPhotoUrl: string | null;
 }
 
 export interface PersonPhotoModel {

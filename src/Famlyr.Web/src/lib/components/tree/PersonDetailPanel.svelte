@@ -66,13 +66,28 @@
         if (count >= 100) return '99+';
         return count.toString();
     }
+
+    function getInitials(firstName: string | null, lastName: string | null): string {
+        const first = firstName?.[0] ?? '';
+        const last = lastName?.[0] ?? '';
+        return (first + last).toUpperCase() || '?';
+    }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="detail-panel" role="dialog" aria-modal="true" aria-label="Person details">
     <header class="panel-header">
-        <h3>{formatName(person.firstName, person.lastName)}</h3>
+        <div class="header-content">
+            {#if person.primaryPhotoUrl}
+                <img src={person.primaryPhotoUrl} alt="" class="header-photo" />
+            {:else}
+                <div class="header-avatar" data-gender={person.gender}>
+                    {getInitials(person.firstName, person.lastName)}
+                </div>
+            {/if}
+            <h3>{formatName(person.firstName, person.lastName)}</h3>
+        </div>
         <button class="close-btn" onclick={onClose} aria-label="Close panel">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -206,9 +221,45 @@
         border-bottom: 1px solid var(--color-neutral-200);
     }
 
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .header-photo {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .header-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .header-avatar[data-gender="Male"] { background-color: #525f80; }
+    .header-avatar[data-gender="Female"] { background-color: #9a8a6c; }
+    .header-avatar[data-gender="Other"] { background-color: #317876; }
+    .header-avatar[data-gender="Unknown"] { background-color: #868e96; }
+
     .panel-header h3 {
         margin: 0;
         font-size: 1.125rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .close-btn {

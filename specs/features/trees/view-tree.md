@@ -1,6 +1,6 @@
 # Feature: View Family Tree
 
-> **Status:** Phase 1 Implemented
+> **Status:** Phase 1-3 Implemented (Phase 3 partial: LOD + photos done, timeline pending)
 > **GitHub Issue:** #TBD
 > **Author:** Adam Jež
 > **Last Updated:** 2025-12-29
@@ -75,9 +75,9 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 - [x] When focus changes: all manual expansions reset, only new focus lineage visible
 
 #### Levels of Detail (LOD)
-- [ ] **LOD 1 (Zoom < 0.2)**: Tree shape only - small colored rectangles by gender, century/decade row indicators
-- [ ] **LOD 2 (Zoom 0.2-0.5)**: Medium detail - person names (truncated), birth/death years
-- [ ] **LOD 3 (Zoom > 0.5)**: Full details - primary photo (circular crop, ~40px), full name, dates, birthplace, gender icon
+- [x] **LOD 1 (Zoom < 0.2)**: Tree shape only - small colored rectangles by gender, century/decade row indicators
+- [x] **LOD 2 (Zoom 0.2-0.5)**: Medium detail - person names (truncated), birth/death years
+- [x] **LOD 3 (Zoom > 0.5)**: Full details - primary photo (circular crop, ~40px), full name, dates, birthplace, gender icon
   - Photo displayed in top-left or top portion of node
   - Show placeholder avatar if no photo (gender-based icon or initials)
   - See `person-photos.md` spec for photo data model
@@ -94,10 +94,10 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 - [ ] Toggle mini-map visibility with button (default: hidden on mobile, visible on desktop)
 
 #### Search
-- [ ] Search bar to find persons by first name or last name
-- [ ] Case-insensitive fuzzy matching
-- [ ] Display up to 10 matching results in dropdown
-- [ ] Click result to navigate and focus on that person
+- [x] Search bar to find persons by first name or last name
+- [x] Case-insensitive fuzzy matching
+- [x] Display up to 10 matching results in dropdown
+- [x] Click result to navigate and focus on that person
 - [ ] Keyboard shortcut: `/` to focus search bar
 
 #### Person Selection
@@ -593,17 +593,18 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 - [x] Automatic expansion of focused lineage
 - [x] Keyboard shortcuts (Space, E, C, F)
 
-### Phase 3: Level of Detail
-- LOD manager based on zoom thresholds
-- Three detail levels implemented
-- Century/decade timeline indicators
-- Performance optimization (culling)
+### Phase 3: Level of Detail ✅ DONE (except timeline)
+- [x] LOD manager based on zoom thresholds
+- [x] Three detail levels implemented
+- [x] Photo display at LOD 3 with placeholder avatars
+- [ ] Century/decade timeline indicators
+- [ ] Performance optimization (culling)
 
 ### Phase 4: Navigation Features
-- Mini-map component (toggleable)
-- Search bar with fuzzy matching
+- [ ] Mini-map component (toggleable)
+- [x] Search bar with fuzzy matching
 - [x] Focus mode implementation
-- Keyboard navigation
+- [ ] Keyboard navigation
 
 ### Phase 5: Polish & Accessibility
 - ARIA labels and screen reader support

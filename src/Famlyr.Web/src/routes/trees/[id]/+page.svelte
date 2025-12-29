@@ -50,6 +50,12 @@
         return `b. ${birth}`;
     }
 
+    function getInitials(person: PersonModel): string {
+        const first = person.firstName?.[0] ?? '';
+        const last = person.lastName?.[0] ?? '';
+        return (first + last).toUpperCase() || '?';
+    }
+
     function selectPerson(person: PersonModel) {
         selectedPerson = person;
     }
@@ -222,11 +228,26 @@
                         class="card-interactive text-left"
                         onclick={() => selectPerson(person)}
                     >
-                        <p class="font-medium text-neutral-900">{formatPersonName(person)}</p>
-                        <p class="mt-1 text-sm text-neutral-500">{getPersonYears(person)}</p>
-                        <span class="mt-2 inline-block text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
-                            {person.gender}
-                        </span>
+                        <div class="person-card-content">
+                            {#if person.primaryPhotoUrl}
+                                <img
+                                    src={person.primaryPhotoUrl}
+                                    alt=""
+                                    class="person-card-photo"
+                                />
+                            {:else}
+                                <div class="person-card-avatar" data-gender={person.gender}>
+                                    {getInitials(person)}
+                                </div>
+                            {/if}
+                            <div class="person-card-info">
+                                <p class="font-medium text-neutral-900">{formatPersonName(person)}</p>
+                                <p class="mt-1 text-sm text-neutral-500">{getPersonYears(person)}</p>
+                                <span class="mt-2 inline-block text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
+                                    {person.gender}
+                                </span>
+                            </div>
+                        </div>
                     </button>
                 {/each}
             </div>
@@ -307,5 +328,42 @@
     .icon-btn-danger:hover {
         background-color: var(--color-error-50, #fef2f2);
         color: var(--color-error-600, #dc2626);
+    }
+
+    .person-card-content {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .person-card-photo {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .person-card-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .person-card-avatar[data-gender="Male"] { background-color: #525f80; }
+    .person-card-avatar[data-gender="Female"] { background-color: #9a8a6c; }
+    .person-card-avatar[data-gender="Other"] { background-color: #317876; }
+    .person-card-avatar[data-gender="Unknown"] { background-color: #868e96; }
+
+    .person-card-info {
+        flex: 1;
+        min-width: 0;
     }
 </style>

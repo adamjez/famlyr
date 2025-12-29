@@ -4,6 +4,7 @@
     import { calculateLayout, getFocusLineageIds } from '$lib/services/tree/layoutEngine';
     import { treeViewState } from '$lib/stores/treeView.svelte';
     import { createGestureHandler } from '$lib/services/tree/gestureHandler';
+    import { getLODLevel, type LODLevel } from '$lib/types/tree';
     import type { FamilyTreeModel } from '$lib/types/api';
 
     interface Props {
@@ -20,22 +21,32 @@
     let isDragging = false;
     let lastPointerX = 0;
     let lastPointerY = 0;
+    let currentLOD: LODLevel = 3;
 
-    function recalculateLayout(newExpandedNodeIds?: Set<string>) {
+    function recalculateLayout(newExpandedNodeIds?: Set<string>, forceRecalc = false) {
         const currentTree = treeViewState.tree;
         const focusId = treeViewState.focusedPersonId;
         const expandedIds = newExpandedNodeIds ?? treeViewState.expandedNodeIds;
+        const newLOD = getLODLevel(treeViewState.viewport.zoom);
 
         if (!currentTree || !focusId || !renderer) {
             return;
         }
 
-        const layout = calculateLayout(currentTree, focusId, {
-            expandedNodeIds: expandedIds
-        });
+        // Only recalculate if LOD changed or forced
+        if (newLOD !== currentLOD || forceRecalc || newExpandedNodeIds) {
+            currentLOD = newLOD;
 
-        treeViewState.setLayout(layout);
-        renderer.render(layout);
+            const layout = calculateLayout(currentTree, focusId, {
+                expandedNodeIds: expandedIds,
+                lod: currentLOD
+            });
+
+            treeViewState.setLayout(layout);
+            renderer.setLOD(currentLOD);
+            renderer.render(layout);
+        }
+
         renderer.updateViewport(treeViewState.viewport);
     }
 
@@ -57,7 +68,7 @@
 
     export function setFocusPerson(personId: string) {
         treeViewState.setFocusPerson(personId);
-        recalculateLayout(new Set());
+        recalculateLayout(new Set(), true);
         treeViewState.zoomToFocusedPerson();
     }
 
@@ -88,9 +99,11 @@
             const focusLineageIds = getFocusLineageIds(tree, focusId);
             const initialExpandedSet = new Set(focusLineageIds);
             treeViewState.resetFoldState(focusLineageIds);
+            currentLOD = getLODLevel(treeViewState.viewport.zoom);
 
             const layout = calculateLayout(tree, focusId, {
-                expandedNodeIds: initialExpandedSet
+                expandedNodeIds: initialExpandedSet,
+                lod: currentLOD
             });
             treeViewState.setLayout(layout);
         }
@@ -137,7 +150,14 @@
 
     $effect(() => {
         const viewport = treeViewState.viewport;
-        renderer?.updateViewport(viewport);
+        const newLOD = getLODLevel(viewport.zoom);
+
+        // Check if LOD changed and needs recalculation
+        if (newLOD !== currentLOD && renderer) {
+            recalculateLayout(undefined, false);
+        } else {
+            renderer?.updateViewport(viewport);
+        }
     });
 
     function handleWheel(event: WheelEvent) {

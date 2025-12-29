@@ -1,6 +1,6 @@
 import type { FamilyTreeModel, PersonModel, RelationshipModel } from '$lib/types/api';
-import type { TreeLayout, TreeNode, TreeBounds, TreeConnection, LayoutConfig, Position } from '$lib/types/tree';
-import { DEFAULT_LAYOUT_CONFIG } from '$lib/types/tree';
+import type { TreeLayout, TreeNode, TreeBounds, TreeConnection, LayoutConfig, Position, LODLevel } from '$lib/types/tree';
+import { DEFAULT_LAYOUT_CONFIG, LOD_CONFIGS } from '$lib/types/tree';
 
 interface RelationshipMaps {
     parentOf: Map<string, string[]>;
@@ -635,6 +635,7 @@ function determineVisibleNodes(
 export interface LayoutOptions {
     config?: LayoutConfig;
     expandedNodeIds?: Set<string>;
+    lod?: LODLevel;
 }
 
 export function calculateLayout(
@@ -642,7 +643,18 @@ export function calculateLayout(
     focusPersonId: string,
     options: LayoutOptions = {}
 ): TreeLayout {
-    const config = options.config ?? DEFAULT_LAYOUT_CONFIG;
+    const lod = options.lod ?? 3;
+    const lodConfig = LOD_CONFIGS[lod];
+    const baseConfig = options.config ?? DEFAULT_LAYOUT_CONFIG;
+    const config: LayoutConfig = {
+        ...baseConfig,
+        nodeWidth: lodConfig.nodeWidth,
+        nodeHeight: lodConfig.nodeHeight,
+        siblingGap: Math.max(20, baseConfig.siblingGap * (lodConfig.nodeWidth / DEFAULT_LAYOUT_CONFIG.nodeWidth)),
+        generationGap: Math.max(30, baseConfig.generationGap * (lodConfig.nodeHeight / DEFAULT_LAYOUT_CONFIG.nodeHeight)),
+        spouseGap: Math.max(10, baseConfig.spouseGap * (lodConfig.nodeWidth / DEFAULT_LAYOUT_CONFIG.nodeWidth)),
+        branchGap: Math.max(20, baseConfig.branchGap * (lodConfig.nodeWidth / DEFAULT_LAYOUT_CONFIG.nodeWidth))
+    };
     const expandedNodeIds = options.expandedNodeIds ?? new Set<string>();
 
     const maps = buildRelationshipMaps(tree.relationships);
