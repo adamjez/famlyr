@@ -95,10 +95,10 @@
                     <p class="mt-2 text-neutral-600">{data.tree.description}</p>
                 {/if}
             </div>
-            <div class="flex gap-3">
-                <button class="btn btn-secondary" onclick={openAddPerson}>Add Person</button>
-                <a href="/trees/{data.tree.id}/statistics" class="btn btn-secondary">Statistics</a>
-                <a href="/tree/{data.tree.id}" class="btn btn-primary">View Tree</a>
+            <div class="flex gap-3 flex-shrink-0">
+                <button class="btn btn-secondary whitespace-nowrap" onclick={openAddPerson}>Add Person</button>
+                <a href="/trees/{data.tree.id}/statistics" class="btn btn-secondary whitespace-nowrap">Statistics</a>
+                <a href="/tree/{data.tree.id}" class="btn btn-primary whitespace-nowrap">View Tree</a>
             </div>
         </div>
         <div class="mt-4 flex gap-6 text-sm text-neutral-500">
