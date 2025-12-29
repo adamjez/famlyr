@@ -127,7 +127,9 @@ Feature specs are written in markdown before implementation.
 2. Create linked GitHub issue
 3. Get spec approved
 4. Implement following the spec
-5. Update spec status to "Implemented"
+5. **Update spec after implementation** - mark status as "Implemented", check off requirements, resolve open questions
+
+**Important:** When implementing a feature based on a spec, always update the spec at the end to reflect what was built.
 
 ### Spec Location
 - Template: `specs/_template.md`

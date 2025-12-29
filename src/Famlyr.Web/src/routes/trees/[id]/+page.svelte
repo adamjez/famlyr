@@ -6,12 +6,14 @@
     import { showToast } from "$lib/stores/toast.svelte";
     import PersonDetailPanel from "$lib/components/PersonDetailPanel.svelte";
     import PersonFormPanel from "$lib/components/PersonFormPanel.svelte";
+    import TreeSearch from "$lib/components/tree/TreeSearch.svelte";
 
     let { data }: { data: PageData } = $props();
 
     let selectedPerson: PersonModel | null = $state(null);
     let editingPerson: PersonDetailModel | null = $state(null);
     let showAddPerson = $state(false);
+    let searchRef: TreeSearch | null = $state(null);
 
     function formatDate(dateString: string): string {
         return new Date(dateString).toLocaleDateString(undefined, {
@@ -72,7 +74,27 @@
         await invalidateAll();
         showToast(isEdit ? 'Person updated successfully' : 'Person added successfully');
     }
+
+    function handleSearchSelect(person: PersonModel) {
+        selectedPerson = person;
+    }
+
+    function handleGlobalKeydown(event: KeyboardEvent) {
+        if (
+            event.target instanceof HTMLInputElement ||
+            event.target instanceof HTMLTextAreaElement
+        ) {
+            return;
+        }
+
+        if (event.key === '/') {
+            event.preventDefault();
+            searchRef?.focus();
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <svelte:head>
     <title>{data.tree.name} - Famlyr</title>
@@ -95,7 +117,7 @@
                     <p class="mt-2 text-neutral-600">{data.tree.description}</p>
                 {/if}
             </div>
-            <div class="flex gap-3 flex-shrink-0">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
                 <button class="btn btn-secondary whitespace-nowrap" onclick={openAddPerson}>Add Person</button>
                 <a href="/trees/{data.tree.id}/statistics" class="btn btn-secondary whitespace-nowrap">Statistics</a>
                 <a href="/tree/{data.tree.id}" class="btn btn-primary whitespace-nowrap">View Tree</a>
@@ -123,7 +145,19 @@
 
     <!-- Persons List Section -->
     <div>
-        <h2 class="text-xl font-semibold">Persons</h2>
+        <div class="flex items-center justify-between gap-4">
+            <h2 class="text-xl font-semibold">Persons</h2>
+            {#if data.tree.persons.length > 0}
+                <div class="w-72">
+                    <TreeSearch
+                        bind:this={searchRef}
+                        persons={data.tree.persons}
+                        onSelect={handleSearchSelect}
+                        inline={true}
+                    />
+                </div>
+            {/if}
+        </div>
 
         {#if data.tree.persons.length === 0}
             <div class="card mt-4 text-center py-8">

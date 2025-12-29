@@ -1,9 +1,9 @@
 # Feature: Person Create & Edit
 
-> **Status:** Draft
+> **Status:** Implemented
 > **GitHub Issue:** #TBD
 > **Author:** Adam Jez
-> **Last Updated:** 2025-12-28
+> **Last Updated:** 2025-12-29
 
 ## Overview
 
@@ -29,29 +29,29 @@ Allow users to create, edit, and delete persons in a family tree. Each person ca
 
 ### Functional
 
-- [ ] Create a new person with optional biographical fields
-- [ ] Edit an existing person's details
-- [ ] Delete a person (cascade deletes photos and relationships)
-- [ ] Get a person's full details
-- [ ] Support inline photo upload during create/edit
-- [ ] Notes field with markdown support
-- [ ] All biographical fields are optional (names, dates, gender, notes)
-- [ ] Delete photos from a person
-- [ ] Set a photo as primary (only one primary per person)
-- [ ] Reorder photos for gallery display
-- [ ] When primary photo is deleted, next photo becomes primary (or none if last)
-- [ ] Support JPEG, PNG, and WebP image formats
-- [ ] Add parent relationship (assign existing person as parent)
-- [ ] Add child relationship (assign existing person as child)
-- [ ] Add spouse relationship (assign existing person as spouse)
-- [ ] Remove relationships
-- [ ] Search existing people in tree for relationship assignment
+- [x] Create a new person with optional biographical fields
+- [x] Edit an existing person's details
+- [x] Delete a person (cascade deletes photos and relationships)
+- [x] Get a person's full details
+- [x] Support inline photo upload during create/edit
+- [x] Notes field with markdown support
+- [x] All biographical fields are optional (names, dates, gender, notes)
+- [x] Delete photos from a person
+- [x] Set a photo as primary (only one primary per person)
+- [x] Reorder photos for gallery display
+- [x] When primary photo is deleted, next photo becomes primary (or none if last)
+- [x] Support JPEG, PNG, and WebP image formats
+- [x] Add parent relationship (assign existing person as parent)
+- [x] Add child relationship (assign existing person as child)
+- [x] Add spouse relationship (assign existing person as spouse)
+- [x] Remove relationships
+- [x] Search existing people in tree for relationship assignment
 
 ### Non-functional
 
-- [ ] Response time < 500ms for create/edit without photos
-- [ ] Response time < 1000ms for create/edit with photos
-- [ ] Support up to 1000 persons per tree
+- [x] Response time < 500ms for create/edit without photos
+- [x] Response time < 1000ms for create/edit with photos
+- [x] Support up to 1000 persons per tree
 
 ## API Specification
 
@@ -728,6 +728,53 @@ builder.HasIndex(p => new { p.PersonId, p.IsPrimary });
 - v0.3+: Verify user owns the tree before allowing person operations
 - Validate image content (not just extension) to prevent malicious files
 - Sanitize notes field to prevent XSS (if rendered as HTML)
+
+## Frontend Implementation
+
+### Components
+
+| Component | File | Description |
+|-----------|------|-------------|
+| PersonFormPanel | `src/lib/components/PersonFormPanel.svelte` | Slide-in panel for creating/editing persons with photo upload |
+| PersonDetailPanel | `src/lib/components/PersonDetailPanel.svelte` | Slide-in panel showing person details with relationship management |
+| PersonSearch | `src/lib/components/PersonSearch.svelte` | Reusable person search dropdown with debounced search |
+| Toast | `src/lib/components/Toast.svelte` | Toast notification component for success/error messages |
+
+### User Experience
+
+- **Toast Notifications**: Success toasts shown when person is created, updated, or when relationships are added/removed
+- **Error Display**: API error messages displayed near the save button (not at top of form) for better visibility
+- **User-Friendly Errors**: API client parses error response bodies to show meaningful messages (e.g., "Cannot add more than 2 parents") instead of generic "400 Bad Request"
+- **Relationship Editing**: Users can add/remove relationships directly in PersonDetailPanel without opening a separate form
+- **Responsive Header**: Tree page header buttons stack vertically on mobile, horizontally on larger screens
+
+### API Client
+
+The API client (`src/lib/api/client.ts`) parses error response bodies to extract the `message` field:
+
+```typescript
+async function handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+        let message: string | undefined;
+        try {
+            const errorBody = await response.json();
+            message = errorBody?.message;
+        } catch {
+            // Response body is not JSON or empty
+        }
+        throw new ApiError(response.status, response.statusText, message);
+    }
+    return response.json();
+}
+```
+
+### Toast Store
+
+Global toast state managed in `src/lib/stores/toast.svelte.ts`:
+
+```typescript
+showToast(message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000)
+```
 
 ## Out of Scope
 

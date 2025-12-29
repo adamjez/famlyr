@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { PersonModel, PersonRelationshipsResponse, PersonSearchResultModel } from '$lib/types/api';
+    import type { PersonModel, PersonRelationshipsResponse, PersonSearchResultModel, Gender } from '$lib/types/api';
     import { getRelationships, addRelationship, removeRelationship } from '$lib/api/persons';
     import { showToast } from '$lib/stores/toast.svelte';
     import PersonSearch from './PersonSearch.svelte';
@@ -103,7 +103,7 @@
         }
     }
 
-    function handleSelectRelatedPerson(relatedPerson: { id: string; firstName: string | null; lastName: string | null; gender: string }) {
+    function handleSelectRelatedPerson(relatedPerson: { id: string; firstName: string | null; lastName: string | null; gender: Gender }) {
         onSelectPerson({
             id: relatedPerson.id,
             firstName: relatedPerson.firstName,
@@ -123,7 +123,7 @@
     aria-label="Close panel"
 ></button>
 
-<aside class="detail-panel" role="dialog" aria-label="Person details">
+<div class="detail-panel" role="dialog" aria-modal="true" aria-label="Person details">
     <header class="panel-header">
         <h3>{formatName(person.firstName, person.lastName)}</h3>
         <button class="close-btn" onclick={onClose} aria-label="Close panel">
@@ -311,7 +311,7 @@
             </a>
         </div>
     </div>
-</aside>
+</div>
 
 <style>
     .panel-backdrop {

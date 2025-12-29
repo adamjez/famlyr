@@ -70,7 +70,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<aside class="detail-panel" role="dialog" aria-label="Person details">
+<div class="detail-panel" role="dialog" aria-modal="true" aria-label="Person details">
     <header class="panel-header">
         <h3>{formatName(person.firstName, person.lastName)}</h3>
         <button class="close-btn" onclick={onClose} aria-label="Close panel">
@@ -171,7 +171,7 @@
             {/if}
         </dl>
     </div>
-</aside>
+</div>
 
 <style>
     .detail-panel {

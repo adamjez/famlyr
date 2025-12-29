@@ -111,7 +111,7 @@
     aria-label="Close panel"
 ></button>
 
-<aside class="form-panel" role="dialog" aria-label={isEditMode ? 'Edit person' : 'Add person'}>
+<div class="form-panel" role="dialog" aria-modal="true" aria-label={isEditMode ? 'Edit person' : 'Add person'}>
     <header class="panel-header">
         <h3>{isEditMode ? 'Edit Person' : 'Add Person'}</h3>
         <button class="close-btn" onclick={onClose} aria-label="Close panel">
@@ -188,12 +188,12 @@
         </div>
 
         <div class="form-group">
-            <label>Photos</label>
+            <label for="photos">Photos</label>
             {#if existingPhotos.length > 0}
                 <div class="photo-grid">
                     {#each existingPhotos as photo}
                         <div class="photo-item">
-                            <img src={photo.imageUrl} alt="Person photo" />
+                            <img src={photo.imageUrl} alt="Uploaded portrait" />
                             {#if photo.isPrimary}
                                 <span class="primary-badge">Primary</span>
                             {/if}
@@ -268,7 +268,7 @@
             </button>
         </div>
     </form>
-</aside>
+</div>
 
 <style>
     .panel-backdrop {

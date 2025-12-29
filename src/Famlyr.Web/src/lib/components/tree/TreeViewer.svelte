@@ -1,9 +1,10 @@
 <script lang="ts">
     import TreeCanvas from './TreeCanvas.svelte';
     import TreeControls from './TreeControls.svelte';
+    import TreeSearch from './TreeSearch.svelte';
     import PersonDetailPanel from './PersonDetailPanel.svelte';
     import { treeViewState } from '$lib/stores/treeView.svelte';
-    import type { FamilyTreeModel } from '$lib/types/api';
+    import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
 
     interface Props {
         tree: FamilyTreeModel;
@@ -14,6 +15,7 @@
 
     let hasInitialFocus = $state(false);
     let canvasRef: TreeCanvas | null = $state(null);
+    let searchRef: TreeSearch | null = $state(null);
 
     $effect(() => {
         if (focusPersonId && treeViewState.layout && !hasInitialFocus) {
@@ -32,12 +34,39 @@
     function handleToggleFold(personId: string) {
         canvasRef?.toggleFold(personId);
     }
+
+    function handleSearchSelect(person: PersonModel) {
+        canvasRef?.setFocusPerson(person.id);
+        treeViewState.selectPerson(person.id);
+    }
+
+    function handleGlobalKeydown(event: KeyboardEvent) {
+        if (
+            event.target instanceof HTMLInputElement ||
+            event.target instanceof HTMLTextAreaElement
+        ) {
+            return;
+        }
+
+        if (event.key === '/') {
+            event.preventDefault();
+            searchRef?.focus();
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <div class="tree-viewer">
     <div class="tree-viewport">
         <TreeCanvas bind:this={canvasRef} {tree} />
     </div>
+
+    <TreeSearch
+        bind:this={searchRef}
+        persons={tree.persons}
+        onSelect={handleSearchSelect}
+    />
 
     <TreeControls />
 

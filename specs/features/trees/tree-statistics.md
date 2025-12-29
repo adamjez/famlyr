@@ -1,9 +1,9 @@
 # Feature: Tree Statistics
 
-> **Status:** Draft
+> **Status:** Implemented
 > **GitHub Issue:** TBD
 > **Author:** Claude
-> **Last Updated:** 2025-12-28
+> **Last Updated:** 2025-12-29
 
 ## Overview
 
@@ -21,23 +21,23 @@ Display interesting statistical data from a family tree, including name frequenc
 
 ### Functional
 
-- [ ] Display summary statistics (total persons, data completeness)
-- [ ] Show top 10 most common first names with occurrence counts
-- [ ] Show top 10 most common last names with occurrence counts
-- [ ] Display bar chart of births by weekday (Sunday-Saturday)
-- [ ] Display bar chart of births by day of month (1-31)
-- [ ] Display bar chart of births by month (January-December)
-- [ ] Display gender distribution (Male, Female, Other, Unknown)
-- [ ] Display lifespan statistics (average, oldest, youngest death age)
-- [ ] Display birth decade distribution chart
-- [ ] Navigate to statistics page from tree detail view
+- [x] Display summary statistics (total persons, data completeness)
+- [x] Show top 10 most common first names with occurrence counts
+- [x] Show top 10 most common last names with occurrence counts
+- [x] Display bar chart of births by weekday (Sunday-Saturday)
+- [x] Display bar chart of births by day of month (1-31)
+- [x] Display bar chart of births by month (January-December)
+- [x] Display gender distribution (Male, Female, Other, Unknown)
+- [x] Display lifespan statistics (average, oldest, youngest death age)
+- [x] Display birth decade distribution chart
+- [x] Navigate to statistics page from tree detail view
 
 ### Non-functional
 
-- [ ] Performance: Statistics calculation must complete within 500ms for trees with 1000 persons
-- [ ] Performance: Single database query to fetch all required data
-- [ ] Accessibility: Charts must have text alternatives for screen readers
-- [ ] Responsiveness: Statistics page must work on mobile devices
+- [x] Performance: Statistics calculation must complete within 500ms for trees with 1000 persons
+- [x] Performance: Single database query to fetch all required data
+- [x] Accessibility: Charts must have text alternatives for screen readers
+- [x] Responsiveness: Statistics page must work on mobile devices
 
 ## API Specification
 
@@ -179,7 +179,7 @@ public record DecadeStatItem(int Decade, int Count);
 ```
 src/routes/trees/[id]/statistics/
 ├── +page.svelte           # Statistics page component
-└── +page.ts               # Data loader
+└── +page.server.ts        # Data loader
 
 src/lib/components/statistics/
 ├── SummaryCards.svelte    # Summary stat cards (total, coverage)
@@ -230,8 +230,8 @@ Add "Statistics" link to tree detail page header/navigation area.
 
 ## Open Questions
 
-- [ ] Should name statistics include a "Show all" option beyond top 10?
-- [ ] Should we cache statistics for large trees?
+- [x] Should name statistics include a "Show all" option beyond top 10? **Decision: No, top 10 only**
+- [x] Should we cache statistics for large trees? **Decision: No, fresh computation is fast enough**
 
 ## Related
 

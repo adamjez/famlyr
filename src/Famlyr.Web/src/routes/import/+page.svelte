@@ -222,8 +222,8 @@
                 <div class="card">
                     <h2>Import Configuration</h2>
 
-                    <div class="form-section">
-                        <label class="label">Import Mode</label>
+                    <fieldset class="form-section">
+                        <legend class="label">Import Mode</legend>
                         <div class="radio-group">
                             <label class="radio-option">
                                 <input type="radio" bind:group={importMode} value="new" />
@@ -240,7 +240,7 @@
                                 </span>
                             </label>
                         </div>
-                    </div>
+                    </fieldset>
 
                     {#if importMode === 'new'}
                         <div class="form-section">
@@ -524,7 +524,14 @@
         margin-bottom: 1.5rem;
     }
 
-    .form-section .label {
+    fieldset.form-section {
+        border: none;
+        padding: 0;
+        margin: 0 0 1.5rem 0;
+    }
+
+    .form-section .label,
+    .form-section legend.label {
         margin-bottom: 0.5rem;
     }
 
