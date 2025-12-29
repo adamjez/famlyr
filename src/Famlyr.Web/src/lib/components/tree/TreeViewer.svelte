@@ -13,6 +13,7 @@
     let { tree, focusPersonId = null }: Props = $props();
 
     let hasInitialFocus = $state(false);
+    let canvasRef: TreeCanvas | null = $state(null);
 
     $effect(() => {
         if (focusPersonId && treeViewState.layout && !hasInitialFocus) {
@@ -23,11 +24,19 @@
             }, 100);
         }
     });
+
+    function handleFocus(personId: string) {
+        canvasRef?.setFocusPerson(personId);
+    }
+
+    function handleToggleFold(personId: string) {
+        canvasRef?.toggleFold(personId);
+    }
 </script>
 
 <div class="tree-viewer">
     <div class="tree-viewport">
-        <TreeCanvas {tree} />
+        <TreeCanvas bind:this={canvasRef} {tree} />
     </div>
 
     <TreeControls />
@@ -38,6 +47,8 @@
             node={treeViewState.selectedNode}
             {tree}
             onClose={() => treeViewState.selectPerson(null)}
+            onFocus={handleFocus}
+            onToggleFold={handleToggleFold}
         />
     {/if}
 </div>

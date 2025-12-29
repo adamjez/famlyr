@@ -1,5 +1,5 @@
 import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
-import type { TreeLayout, Viewport, TreeNode } from '$lib/types/tree';
+import type { TreeLayout, Viewport, TreeNode, FoldState } from '$lib/types/tree';
 import { ZOOM_MAX } from '$lib/types/tree';
 
 const ANIMATION_DURATION = 300;
@@ -24,6 +24,7 @@ function createTreeViewState() {
 
     let selectedPersonId = $state<string | null>(null);
     let focusedPersonId = $state<string | null>(null);
+    let expandedNodeIds = $state<Set<string>>(new Set());
 
     let animationFrameId: number | null = null;
 
@@ -197,6 +198,7 @@ function createTreeViewState() {
         get selectedPerson() { return selectedPerson; },
         get selectedNode() { return selectedNode; },
         get fitZoom() { return fitZoom; },
+        get expandedNodeIds() { return expandedNodeIds; },
 
         setTree(newTree: FamilyTreeModel) {
             tree = newTree;
@@ -237,15 +239,18 @@ function createTreeViewState() {
 
         selectPerson(personId: string | null) {
             selectedPersonId = personId;
-
-            if (personId) {
-                const relatedIds = getRelatedNodeIds(personId);
-                zoomToGroup(relatedIds, true);
-            }
         },
 
         setFocusPerson(personId: string | null) {
+            if (personId === focusedPersonId) return;
             focusedPersonId = personId;
+            expandedNodeIds = new Set();
+        },
+
+        zoomToFocusedPerson() {
+            if (!focusedPersonId) return;
+            const relatedIds = getRelatedNodeIds(focusedPersonId);
+            zoomToGroup(relatedIds, true);
         },
 
         fitToScreen() {
@@ -258,6 +263,62 @@ function createTreeViewState() {
             fitZoom = calculateFitZoom();
             const position = calculateFitPosition(fitZoom);
             animateViewport(position.x, position.y, fitZoom);
+        },
+
+        toggleNodeExpanded(nodeId: string) {
+            const newSet = new Set(expandedNodeIds);
+            if (newSet.has(nodeId)) {
+                newSet.delete(nodeId);
+            } else {
+                newSet.add(nodeId);
+            }
+            expandedNodeIds = newSet;
+        },
+
+        expandNode(nodeId: string) {
+            if (!expandedNodeIds.has(nodeId)) {
+                const newSet = new Set(expandedNodeIds);
+                newSet.add(nodeId);
+                expandedNodeIds = newSet;
+            }
+        },
+
+        collapseNode(nodeId: string) {
+            if (expandedNodeIds.has(nodeId)) {
+                const newSet = new Set(expandedNodeIds);
+                newSet.delete(nodeId);
+                expandedNodeIds = newSet;
+            }
+        },
+
+        expandAllAtLayer(layer: number) {
+            if (!layout) return;
+            const newSet = new Set(expandedNodeIds);
+            for (const node of layout.nodes.values()) {
+                if (node.layer === layer && node.descendantCount > 0) {
+                    newSet.add(node.id);
+                }
+            }
+            expandedNodeIds = newSet;
+        },
+
+        collapseAllAtLayer(layer: number) {
+            if (!layout) return;
+            const newSet = new Set(expandedNodeIds);
+            for (const node of layout.nodes.values()) {
+                if (node.layer === layer) {
+                    newSet.delete(node.id);
+                }
+            }
+            expandedNodeIds = newSet;
+        },
+
+        resetFoldState(focusLineageIds: string[]) {
+            expandedNodeIds = new Set(focusLineageIds);
+        },
+
+        isNodeExpanded(nodeId: string): boolean {
+            return expandedNodeIds.has(nodeId);
         }
     };
 }

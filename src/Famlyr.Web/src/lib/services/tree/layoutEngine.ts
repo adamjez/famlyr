@@ -169,19 +169,21 @@ function getPersonSubtreeWidth(
     subtreeWidths: Map<string, number>,
     maps: RelationshipMaps,
     layerMap: Map<string, number>,
+    visibleNodeIds: Set<string>,
     config: LayoutConfig
 ): number {
     if (subtreeWidths.has(personId)) {
         return subtreeWidths.get(personId)!;
     }
 
-    const children = maps.parentOf.get(personId) ?? [];
+    const allChildren = maps.parentOf.get(personId) ?? [];
+    const children = allChildren.filter(c => visibleNodeIds.has(c));
     const spouses = maps.spouseOf.get(personId) ?? [];
     const personLayer = layerMap.get(personId) ?? 0;
 
     let selfWidth = config.nodeWidth;
     for (const spouseId of spouses) {
-        if (layerMap.get(spouseId) === personLayer) {
+        if (layerMap.get(spouseId) === personLayer && visibleNodeIds.has(spouseId)) {
             selfWidth = config.nodeWidth * 2 + config.spouseGap;
             break;
         }
@@ -199,7 +201,7 @@ function getPersonSubtreeWidth(
         if (processedChildren.has(childId)) continue;
         processedChildren.add(childId);
 
-        const childWidth = getPersonSubtreeWidth(childId, subtreeWidths, maps, layerMap, config);
+        const childWidth = getPersonSubtreeWidth(childId, subtreeWidths, maps, layerMap, visibleNodeIds, config);
         if (childrenWidth > 0) {
             childrenWidth += config.siblingGap;
         }
@@ -215,6 +217,7 @@ function calculateSubtreeWidths(
     persons: PersonModel[],
     layerMap: Map<string, number>,
     maps: RelationshipMaps,
+    visibleNodeIds: Set<string>,
     config: LayoutConfig
 ): Map<string, number> {
     const subtreeWidths = new Map<string, number>();
@@ -226,7 +229,7 @@ function calculateSubtreeWidths(
     });
 
     for (const person of sortedPersons) {
-        getPersonSubtreeWidth(person.id, subtreeWidths, maps, layerMap, config);
+        getPersonSubtreeWidth(person.id, subtreeWidths, maps, layerMap, visibleNodeIds, config);
     }
 
     return subtreeWidths;
@@ -392,9 +395,10 @@ function calculatePositions(
     layerMap: Map<string, number>,
     maps: RelationshipMaps,
     focusPersonId: string,
+    visibleNodeIds: Set<string>,
     config: LayoutConfig
 ): Map<string, Position> {
-    const subtreeWidths = calculateSubtreeWidths(persons, layerMap, maps, config);
+    const subtreeWidths = calculateSubtreeWidths(persons, layerMap, maps, visibleNodeIds, config);
     const xPositions = assignXPositions(persons, layerMap, maps, subtreeWidths, focusPersonId, config);
 
     const positions = new Map<string, Position>();
@@ -438,23 +442,28 @@ function orderNodesInLayers(
 
 function buildConnections(
     persons: PersonModel[],
-    maps: RelationshipMaps
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>
 ): TreeConnection[] {
     const connections: TreeConnection[] = [];
     const processedSpouses = new Set<string>();
 
     for (const person of persons) {
+        if (!visibleNodeIds.has(person.id)) continue;
+
         const children = maps.parentOf.get(person.id) ?? [];
-        if (children.length > 0) {
+        const visibleChildren = children.filter(c => visibleNodeIds.has(c));
+        if (visibleChildren.length > 0) {
             connections.push({
                 type: 'parent-child',
                 fromIds: [person.id],
-                toIds: children
+                toIds: visibleChildren
             });
         }
 
         const spouses = maps.spouseOf.get(person.id) ?? [];
         for (const spouseId of spouses) {
+            if (!visibleNodeIds.has(spouseId)) continue;
             const pairKey = [person.id, spouseId].sort().join('-');
             if (!processedSpouses.has(pairKey)) {
                 processedSpouses.add(pairKey);
@@ -470,20 +479,191 @@ function buildConnections(
     return connections;
 }
 
+function calculateDescendantCounts(
+    persons: PersonModel[],
+    maps: RelationshipMaps
+): Map<string, number> {
+    const counts = new Map<string, number>();
+    const visited = new Set<string>();
+
+    function countDescendants(personId: string): number {
+        if (counts.has(personId)) {
+            return counts.get(personId)!;
+        }
+
+        if (visited.has(personId)) {
+            return 0;
+        }
+        visited.add(personId);
+
+        const children = maps.parentOf.get(personId) ?? [];
+        let total = children.length;
+
+        for (const childId of children) {
+            total += countDescendants(childId);
+        }
+
+        counts.set(personId, total);
+        visited.delete(personId);
+        return total;
+    }
+
+    for (const person of persons) {
+        if (!counts.has(person.id)) {
+            countDescendants(person.id);
+        }
+    }
+
+    return counts;
+}
+
+function markFocusLineage(
+    focusPersonId: string,
+    maps: RelationshipMaps
+): Set<string> {
+    const lineage = new Set<string>();
+    const visited = new Set<string>();
+
+    function markAncestors(personId: string) {
+        if (visited.has(personId)) return;
+        visited.add(personId);
+        lineage.add(personId);
+
+        const parents = maps.childOf.get(personId) ?? [];
+        for (const parentId of parents) {
+            markAncestors(parentId);
+        }
+    }
+
+    function markDescendants(personId: string) {
+        if (visited.has(personId)) return;
+        visited.add(personId);
+        lineage.add(personId);
+
+        const children = maps.parentOf.get(personId) ?? [];
+        for (const childId of children) {
+            markDescendants(childId);
+        }
+    }
+
+    markAncestors(focusPersonId);
+    visited.clear();
+    markDescendants(focusPersonId);
+
+    const spouses = maps.spouseOf.get(focusPersonId) ?? [];
+    for (const spouseId of spouses) {
+        lineage.add(spouseId);
+    }
+
+    return lineage;
+}
+
+function determineVisibleNodes(
+    persons: PersonModel[],
+    focusPersonId: string,
+    expandedNodeIds: Set<string>,
+    maps: RelationshipMaps
+): Set<string> {
+    const visible = new Set<string>();
+    const ancestorsProcessed = new Set<string>();
+
+    // 1. Add focus person and their spouses
+    visible.add(focusPersonId);
+    const focusSpouses = maps.spouseOf.get(focusPersonId) ?? [];
+    for (const spouseId of focusSpouses) {
+        visible.add(spouseId);
+    }
+
+    // 2. Add all ancestors of focus person (up to root)
+    // Use separate tracking to ensure we process all ancestor branches
+    function addAncestors(personId: string) {
+        if (ancestorsProcessed.has(personId)) return;
+        ancestorsProcessed.add(personId);
+
+        const parents = maps.childOf.get(personId) ?? [];
+        for (const parentId of parents) {
+            visible.add(parentId);
+            // Add ancestor's spouses
+            const spouses = maps.spouseOf.get(parentId) ?? [];
+            for (const spouseId of spouses) {
+                visible.add(spouseId);
+            }
+            // Always recurse to get this parent's ancestors
+            addAncestors(parentId);
+        }
+    }
+    addAncestors(focusPersonId);
+
+    // 3. Add direct children of focus person
+    const focusChildren = maps.parentOf.get(focusPersonId) ?? [];
+    for (const childId of focusChildren) {
+        visible.add(childId);
+        // Add child's spouses
+        const childSpouses = maps.spouseOf.get(childId) ?? [];
+        for (const spouseId of childSpouses) {
+            visible.add(spouseId);
+        }
+    }
+
+    // 4. Handle manually expanded nodes - show their children recursively
+    function addExpandedDescendants(personId: string) {
+        if (!expandedNodeIds.has(personId)) return;
+
+        const children = maps.parentOf.get(personId) ?? [];
+        for (const childId of children) {
+            if (!visible.has(childId)) {
+                visible.add(childId);
+                // Add child's spouses
+                const childSpouses = maps.spouseOf.get(childId) ?? [];
+                for (const spouseId of childSpouses) {
+                    visible.add(spouseId);
+                }
+            }
+            // Always check if this child is expanded (even if already visible)
+            addExpandedDescendants(childId);
+        }
+    }
+
+    // Check all visible nodes for expansion
+    for (const personId of Array.from(visible)) {
+        addExpandedDescendants(personId);
+    }
+
+    return visible;
+}
+
+export interface LayoutOptions {
+    config?: LayoutConfig;
+    expandedNodeIds?: Set<string>;
+}
+
 export function calculateLayout(
     tree: FamilyTreeModel,
     focusPersonId: string,
-    config: LayoutConfig = DEFAULT_LAYOUT_CONFIG
+    options: LayoutOptions = {}
 ): TreeLayout {
+    const config = options.config ?? DEFAULT_LAYOUT_CONFIG;
+    const expandedNodeIds = options.expandedNodeIds ?? new Set<string>();
+
     const maps = buildRelationshipMaps(tree.relationships);
-    const layerMap = assignLayers(focusPersonId, tree.persons, maps);
-    const positions = calculatePositions(tree.persons, layerMap, maps, focusPersonId, config);
-    const orderedLayers = orderNodesInLayers(layerMap, tree.persons, positions, maps);
+    const descendantCounts = calculateDescendantCounts(tree.persons, maps);
+    const focusLineage = markFocusLineage(focusPersonId, maps);
+    const visibleNodeIds = determineVisibleNodes(tree.persons, focusPersonId, expandedNodeIds, maps);
+
+    const visiblePersons = tree.persons.filter(p => visibleNodeIds.has(p.id));
+
+    const layerMap = assignLayers(focusPersonId, visiblePersons, maps);
+    const positions = calculatePositions(visiblePersons, layerMap, maps, focusPersonId, visibleNodeIds, config);
+    const orderedLayers = orderNodesInLayers(layerMap, visiblePersons, positions, maps);
 
     const nodes = new Map<string, TreeNode>();
     for (const person of tree.persons) {
+        const isVisible = visibleNodeIds.has(person.id);
         const position = positions.get(person.id) ?? { x: 0, y: 0 };
         const layer = layerMap.get(person.id) ?? 0;
+        const descendantCount = descendantCounts.get(person.id) ?? 0;
+        const isFocusLineage = focusLineage.has(person.id);
+        const isCollapsed = descendantCount > 0 && !expandedNodeIds.has(person.id);
 
         nodes.set(person.id, {
             id: person.id,
@@ -495,17 +675,29 @@ export function calculateLayout(
             parentIds: maps.childOf.get(person.id) ?? [],
             isSelected: false,
             width: config.nodeWidth,
-            height: config.nodeHeight
+            height: config.nodeHeight,
+            isCollapsed,
+            descendantCount,
+            isFocusLineage,
+            isVisible
         });
     }
 
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
     for (const node of nodes.values()) {
+        if (!node.isVisible) continue;
         minX = Math.min(minX, node.position.x);
         maxX = Math.max(maxX, node.position.x + node.width);
         minY = Math.min(minY, node.position.y);
         maxY = Math.max(maxY, node.position.y + node.height);
+    }
+
+    if (minX === Infinity) {
+        minX = 0;
+        maxX = config.nodeWidth;
+        minY = 0;
+        maxY = config.nodeHeight;
     }
 
     const bounds: TreeBounds = {
@@ -519,10 +711,19 @@ export function calculateLayout(
 
     const layers = new Map<number, TreeNode[]>();
     for (const [layerIdx, persons] of orderedLayers) {
-        layers.set(layerIdx, persons.map(p => nodes.get(p.id)!));
+        layers.set(layerIdx, persons.map(p => nodes.get(p.id)!).filter(n => n.isVisible));
     }
 
-    const connections = buildConnections(tree.persons, maps);
+    const connections = buildConnections(tree.persons, maps, visibleNodeIds);
 
     return { nodes, bounds, layers, connections };
+}
+
+export function getFocusLineageIds(
+    tree: FamilyTreeModel,
+    focusPersonId: string
+): string[] {
+    const maps = buildRelationshipMaps(tree.relationships);
+    const lineage = markFocusLineage(focusPersonId, maps);
+    return Array.from(lineage);
 }

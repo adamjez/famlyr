@@ -29,6 +29,7 @@ function getNodeColor(gender: Gender): number {
 
 export interface TreeRendererOptions {
     onNodeClick?: (nodeId: string) => void;
+    onFoldToggle?: (nodeId: string) => void;
 }
 
 export class TreeRenderer {
@@ -72,7 +73,9 @@ export class TreeRenderer {
         this.renderConnections(layout);
 
         for (const node of layout.nodes.values()) {
-            this.renderNode(node);
+            if (node.isVisible) {
+                this.renderNode(node);
+            }
         }
     }
 
@@ -96,8 +99,14 @@ export class TreeRenderer {
         const to = layout.nodes.get(connection.toIds[0]);
         if (!from || !to) return;
 
+        // Only skip spouse line if they have VISIBLE shared children
+        // (if children are folded/hidden, we need the spouse line to show the relationship)
         const sharedChildren = from.childIds.filter(childId => to.childIds.includes(childId));
-        if (sharedChildren.length > 0) {
+        const visibleSharedChildren = sharedChildren.filter(childId => {
+            const childNode = layout.nodes.get(childId);
+            return childNode?.isVisible;
+        });
+        if (visibleSharedChildren.length > 0) {
             return;
         }
 
@@ -196,8 +205,67 @@ export class TreeRenderer {
             this.options.onNodeClick?.(node.id);
         });
 
+        if (node.descendantCount > 0) {
+            this.renderFoldIndicator(container, node);
+        }
+
         this.treeContainer.addChild(container);
         this.nodeSprites.set(node.id, container);
+    }
+
+    private renderFoldIndicator(container: Container, node: TreeNode): void {
+        const indicator = new Container();
+        indicator.position.set(node.width - 40, node.height - 24);
+        indicator.eventMode = 'static';
+        indicator.cursor = 'pointer';
+
+        // Explicit hit area for better click detection
+        const hitArea = new Graphics();
+        hitArea.rect(0, 0, 36, 22);
+        hitArea.fill(0x000000);
+        hitArea.alpha = 0.01; // Nearly invisible but clickable
+        indicator.addChild(hitArea);
+
+        const bg = new Graphics();
+        bg.roundRect(2, 2, 32, 18, 4);
+        bg.fill(0x000000);
+        bg.alpha = 0.3;
+        indicator.addChild(bg);
+
+        const triangle = new Graphics();
+        if (node.isCollapsed) {
+            // Right-pointing triangle (collapsed)
+            triangle.moveTo(6, 7);
+            triangle.lineTo(14, 11);
+            triangle.lineTo(6, 15);
+            triangle.closePath();
+        } else {
+            // Down-pointing triangle (expanded)
+            triangle.moveTo(6, 8);
+            triangle.lineTo(14, 8);
+            triangle.lineTo(10, 14);
+            triangle.closePath();
+        }
+        triangle.fill(0xffffff);
+        indicator.addChild(triangle);
+
+        const countText = node.descendantCount > 99 ? '99+' : String(node.descendantCount);
+        const countStyle = new TextStyle({
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 10,
+            fontWeight: '600',
+            fill: 0xffffff
+        });
+        const countLabel = new Text({ text: countText, style: countStyle });
+        countLabel.position.set(16, 5);
+        indicator.addChild(countLabel);
+
+        indicator.on('pointerdown', (event: FederatedPointerEvent) => {
+            event.stopPropagation();
+            this.options.onFoldToggle?.(node.id);
+        });
+
+        container.addChild(indicator);
     }
 
     private formatName(firstName: string | null, lastName: string | null): string {

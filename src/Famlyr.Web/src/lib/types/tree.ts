@@ -16,6 +16,10 @@ export interface TreeNode {
     isSelected: boolean;
     width: number;
     height: number;
+    isCollapsed: boolean;
+    descendantCount: number;
+    isFocusLineage: boolean;
+    isVisible: boolean;
 }
 
 export interface TreeBounds {
@@ -70,3 +74,7 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
 
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 3.0;
+
+export interface FoldState {
+    expandedNodeIds: Set<string>;
+}

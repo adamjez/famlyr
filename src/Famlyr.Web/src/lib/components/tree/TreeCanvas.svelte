@@ -1,8 +1,9 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
     import { TreeRenderer } from '$lib/services/tree/treeRenderer';
-    import { calculateLayout } from '$lib/services/tree/layoutEngine';
+    import { calculateLayout, getFocusLineageIds } from '$lib/services/tree/layoutEngine';
     import { treeViewState } from '$lib/stores/treeView.svelte';
+    import { createGestureHandler } from '$lib/services/tree/gestureHandler';
     import type { FamilyTreeModel } from '$lib/types/api';
 
     interface Props {
@@ -20,6 +21,59 @@
     let lastPointerX = 0;
     let lastPointerY = 0;
 
+    function recalculateLayout(newExpandedNodeIds?: Set<string>) {
+        const currentTree = treeViewState.tree;
+        const focusId = treeViewState.focusedPersonId;
+        const expandedIds = newExpandedNodeIds ?? treeViewState.expandedNodeIds;
+
+        if (!currentTree || !focusId || !renderer) {
+            return;
+        }
+
+        const layout = calculateLayout(currentTree, focusId, {
+            expandedNodeIds: expandedIds
+        });
+
+        treeViewState.setLayout(layout);
+        renderer.render(layout);
+        renderer.updateViewport(treeViewState.viewport);
+    }
+
+    function handleFoldToggle(nodeId: string) {
+        const currentIds = Array.from(treeViewState.expandedNodeIds);
+        const wasExpanded = currentIds.includes(nodeId);
+
+        let newIds: string[];
+        if (wasExpanded) {
+            newIds = currentIds.filter(id => id !== nodeId);
+        } else {
+            newIds = [...currentIds, nodeId];
+        }
+
+        const newSet = new Set(newIds);
+        treeViewState.resetFoldState(newIds);
+        recalculateLayout(newSet);
+    }
+
+    export function setFocusPerson(personId: string) {
+        treeViewState.setFocusPerson(personId);
+        recalculateLayout(new Set());
+        treeViewState.zoomToFocusedPerson();
+    }
+
+    export function toggleFold(nodeId: string) {
+        handleFoldToggle(nodeId);
+    }
+
+    const gestureHandler = createGestureHandler({
+        onPan: (deltaX, deltaY) => {
+            treeViewState.pan(deltaX, deltaY);
+        },
+        onZoom: (newZoom, centerX, centerY) => {
+            treeViewState.zoom(newZoom, centerX, centerY);
+        }
+    });
+
     onMount(async () => {
         if (!canvasElement || !containerElement) return;
 
@@ -31,13 +85,22 @@
 
         const focusId = treeViewState.focusedPersonId ?? tree.persons[0]?.id;
         if (focusId) {
-            const layout = calculateLayout(tree, focusId);
+            const focusLineageIds = getFocusLineageIds(tree, focusId);
+            const initialExpandedSet = new Set(focusLineageIds);
+            treeViewState.resetFoldState(focusLineageIds);
+
+            const layout = calculateLayout(tree, focusId, {
+                expandedNodeIds: initialExpandedSet
+            });
             treeViewState.setLayout(layout);
         }
 
         renderer = new TreeRenderer({
             onNodeClick: (nodeId) => {
                 treeViewState.selectPerson(nodeId);
+            },
+            onFoldToggle: (nodeId) => {
+                handleFoldToggle(nodeId);
             }
         });
 
@@ -123,6 +186,58 @@
             treeViewState.selectPerson(null);
         }
     }
+
+    function handleTouchStart(event: TouchEvent) {
+        if (event.touches.length >= 2) {
+            event.preventDefault();
+        }
+        const rect = containerElement.getBoundingClientRect();
+        gestureHandler.handleTouchStart(event, treeViewState.viewport.zoom, rect);
+    }
+
+    function handleTouchMove(event: TouchEvent) {
+        event.preventDefault();
+        const rect = containerElement.getBoundingClientRect();
+        gestureHandler.handleTouchMove(event, rect);
+    }
+
+    function handleTouchEnd(event: TouchEvent) {
+        gestureHandler.handleTouchEnd(event, treeViewState.viewport.zoom);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+        const selectedId = treeViewState.selectedPersonId;
+        const selectedNode = treeViewState.selectedNode;
+
+        switch (event.key) {
+            case ' ':
+                event.preventDefault();
+                if (selectedId && selectedNode?.descendantCount && selectedNode.descendantCount > 0) {
+                    handleFoldToggle(selectedId);
+                }
+                break;
+            case 'e':
+            case 'E':
+                if (selectedNode) {
+                    treeViewState.expandAllAtLayer(selectedNode.layer);
+                    recalculateLayout(treeViewState.expandedNodeIds);
+                }
+                break;
+            case 'c':
+            case 'C':
+                if (selectedNode) {
+                    treeViewState.collapseAllAtLayer(selectedNode.layer);
+                    recalculateLayout(treeViewState.expandedNodeIds);
+                }
+                break;
+            case 'f':
+            case 'F':
+                if (selectedId) {
+                    setFocusPerson(selectedId);
+                }
+                break;
+        }
+    }
 </script>
 
 <div
@@ -133,6 +248,12 @@
     onpointerup={handlePointerUp}
     onpointercancel={handlePointerUp}
     onclick={handleCanvasClick}
+    ontouchstart={handleTouchStart}
+    ontouchmove={handleTouchMove}
+    ontouchend={handleTouchEnd}
+    ontouchcancel={handleTouchEnd}
+    onkeydown={handleKeyDown}
+    tabindex="0"
     role="application"
     aria-label="Family tree viewer"
 >
@@ -154,6 +275,11 @@
 
     .tree-canvas-container:active {
         cursor: grabbing;
+    }
+
+    .tree-canvas-container:focus {
+        outline: 2px solid #4a90d9;
+        outline-offset: -2px;
     }
 
     canvas {

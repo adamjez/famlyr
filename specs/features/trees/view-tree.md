@@ -3,7 +3,7 @@
 > **Status:** Phase 1 Implemented
 > **GitHub Issue:** #TBD
 > **Author:** Adam Jež
-> **Last Updated:** 2025-12-28
+> **Last Updated:** 2025-12-29
 
 ## Overview
 
@@ -26,6 +26,9 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 - As a user, I want sibling descendants to be collapsed by default so that I can see all siblings at once without visual clutter
 - As a user, I want to expand/unfold a sibling's descendants so that I can explore their branch of the family tree
 - As a user, I want to collapse a sibling's descendants back so that I can focus on other parts of the tree
+- As a user, I want to click a person to see their details without changing my view so that I can browse information while keeping my current tree position
+- As a user, I want to focus on a person from their detail panel so that I can see their direct lineage (ancestors and children) without visual clutter
+- As a user, I want to expand/collapse a person's descendants from the detail panel so that I can explore branches without clicking small fold indicators on the tree
 
 ## Requirements
 
@@ -41,12 +44,12 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 - [ ] Color-code nodes by gender (configurable colors)
 
 #### Sibling Folding
-- [ ] When multiple siblings are displayed, their descendants are collapsed by default
-- [ ] Show fold indicator on sibling nodes that have descendants (e.g., "▶ 12 descendants")
-- [ ] Click fold indicator to expand/unfold that sibling's descendants
-- [ ] Click again to collapse descendants back
-- [ ] Expanded state persists during pan/zoom within the session
-- [ ] Only the focused person's direct lineage (ancestors and descendants) is fully expanded by default
+- [x] When multiple siblings are displayed, their descendants are collapsed by default
+- [x] Show fold indicator on sibling nodes that have descendants (e.g., "▶ 12 descendants")
+- [x] Click fold indicator to expand/unfold that sibling's descendants
+- [x] Click again to collapse descendants back
+- [x] Expanded state persists during pan/zoom within the session
+- [x] Only the focused person's direct lineage (ancestors and descendants) is fully expanded by default
 - [ ] Animate expand/collapse transitions (300ms)
 
 #### Navigation
@@ -61,13 +64,15 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 - [x] Reset button returns to fit-to-screen view
 
 #### Focus Mode
-- [ ] User can select any person as the focus
-- [ ] Focused person appears at vertical center
-- [ ] Ancestors render above the focus person
-- [ ] Descendants render below the focus person (fully expanded by default)
-- [ ] Siblings visible at the same level with their descendants collapsed
+- [x] User can set focus via "Focus" button in detail panel (or keyboard shortcut F on selected person)
+- [x] Focused person appears at vertical center
+- [x] When focus is set, show only:
+  - **Direct children** of focused person
+  - **All ancestors** up to root (full ancestor path)
+  - **All other nodes are folded/hidden** (siblings' descendants, cousins, aunts/uncles' branches)
 - [ ] Visual indicator (highlight ring) for currently focused person
-- [ ] When focus changes, reset fold states: new focus's lineage expanded, siblings collapsed
+- [x] Expanding a folded node shows its descendants until focus changes
+- [x] When focus changes: all manual expansions reset, only new focus lineage visible
 
 #### Levels of Detail (LOD)
 - [ ] **LOD 1 (Zoom < 0.2)**: Tree shape only - small colored rectangles by gender, century/decade row indicators
@@ -100,7 +105,15 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 - [x] Display detail panel (slide-in from right) for selected person
 - [x] Highlight selected node with distinct border
 - [ ] Close panel with X button or clicking outside
-- [x] Zoom to selected person and their direct relatives (parents, children, spouses)
+- [x] Selection does NOT automatically zoom or change focus (browse without losing position)
+
+#### Detail Panel Actions
+- [x] **Focus Button**: "Focus on this person" button that sets the selected person as the focus
+  - Triggers focus mode showing only their direct lineage
+- [x] **Fold/Unfold Button**: Toggle button to expand/collapse selected person's descendants
+  - Only visible if selected person has descendants
+  - Label: "Expand descendants (N)" when collapsed (shows descendant count)
+  - Label: "Collapse descendants" when expanded
 
 ### Non-functional
 
@@ -443,7 +456,7 @@ Photos are stored via the `PersonPhoto` entity. See `person-photos.md` spec for 
 | - | Zoom out |
 | 0 | Reset zoom to fit entire tree |
 | / | Focus search bar |
-| F | Set selected person as focus |
+| F | Set selected person as focus (requires a person to be selected first) |
 | Space | Toggle expand/collapse descendants of selected person |
 | E | Expand all siblings at current level |
 | C | Collapse all siblings at current level |
@@ -481,6 +494,12 @@ Photos are stored via the `PersonPhoto` entity. See `person-photos.md` spec for 
 | Person with no photos | Show placeholder avatar (gender-based color with initials) |
 | Primary photo loading slow | Show placeholder while loading, fade in when ready |
 | Many persons with photos | Lazy load photos as nodes come into view |
+| Focus set on leaf node (no children) | Show focused person + all ancestors to root |
+| Focus set on root node | Show root + direct children only |
+| User expands a folded sibling | Sibling's descendants shown until focus changes |
+| Focus changes to new person | All manual expansions reset, only new focus lineage visible |
+| No person focused | Show entire tree with default folding behavior |
+| Selected person has no descendants | Fold/unfold button hidden in detail panel |
 
 ## Accessibility Considerations
 
@@ -565,14 +584,14 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 - Touch-optimized node sizes
 - Responsive container sizing
 
-### Phase 2.5: Sibling Folding (Large Tree Support)
-- Descendant counting for each node
-- Fold indicator rendering (▶/▼ with count)
-- Click handler for expand/collapse toggle
-- Animated transitions for fold state changes
-- State management for expanded nodes
-- Automatic expansion of focused lineage
-- Keyboard shortcuts (Space, E, C)
+### Phase 2.5: Sibling Folding (Large Tree Support) ✅ DONE
+- [x] Descendant counting for each node
+- [x] Fold indicator rendering (▶/▼ with count)
+- [x] Click handler for expand/collapse toggle
+- [ ] Animated transitions for fold state changes
+- [x] State management for expanded nodes
+- [x] Automatic expansion of focused lineage
+- [x] Keyboard shortcuts (Space, E, C, F)
 
 ### Phase 3: Level of Detail
 - LOD manager based on zoom thresholds
@@ -583,7 +602,7 @@ const animationDuration = prefersReducedMotion ? 0 : 300;
 ### Phase 4: Navigation Features
 - Mini-map component (toggleable)
 - Search bar with fuzzy matching
-- Focus mode implementation
+- [x] Focus mode implementation
 - Keyboard navigation
 
 ### Phase 5: Polish & Accessibility

@@ -8,9 +8,15 @@
         node: TreeNode;
         tree: FamilyTreeModel;
         onClose: () => void;
+        onFocus: (personId: string) => void;
+        onToggleFold: (personId: string) => void;
     }
 
-    let { person, node, tree, onClose }: Props = $props();
+    let { person, node, tree, onClose, onFocus, onToggleFold }: Props = $props();
+
+    const isFocused = $derived(treeViewState.focusedPersonId === person.id);
+    const isExpanded = $derived(treeViewState.expandedNodeIds.has(person.id));
+    const hasDescendants = $derived(node.descendantCount > 0);
 
     const parents = $derived(
         node.parentIds
@@ -47,6 +53,19 @@
     function selectPerson(personId: string) {
         treeViewState.selectPerson(personId);
     }
+
+    function handleFocus() {
+        onFocus(person.id);
+    }
+
+    function handleToggleFold() {
+        onToggleFold(person.id);
+    }
+
+    function formatDescendantCount(count: number): string {
+        if (count >= 100) return '99+';
+        return count.toString();
+    }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -61,6 +80,34 @@
             </svg>
         </button>
     </header>
+
+    <div class="panel-actions">
+        <button
+            class="action-btn"
+            class:action-btn-active={isFocused}
+            onclick={handleFocus}
+            disabled={isFocused}
+        >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="3" />
+            </svg>
+            {isFocused ? 'Focused' : 'Focus on this person'}
+        </button>
+
+        {#if hasDescendants}
+            <button class="action-btn" onclick={handleToggleFold}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    {#if isExpanded}
+                        <polyline points="6 9 12 15 18 9" />
+                    {:else}
+                        <polyline points="9 18 15 12 9 6" />
+                    {/if}
+                </svg>
+                {isExpanded ? 'Collapse descendants' : `Expand descendants (${formatDescendantCount(node.descendantCount)})`}
+            </button>
+        {/if}
+    </div>
 
     <div class="panel-content">
         <dl class="info-list">
@@ -181,6 +228,49 @@
     .close-btn:hover {
         background-color: var(--color-neutral-100);
         color: var(--color-neutral-700);
+    }
+
+    .panel-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--color-neutral-200);
+    }
+
+    .action-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--color-neutral-300);
+        border-radius: 6px;
+        background-color: white;
+        color: var(--color-neutral-700);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 150ms;
+    }
+
+    .action-btn:hover:not(:disabled) {
+        background-color: var(--color-neutral-50);
+        border-color: var(--color-neutral-400);
+    }
+
+    .action-btn:disabled {
+        cursor: default;
+        opacity: 0.7;
+    }
+
+    .action-btn-active {
+        background-color: var(--color-primary-50, #eff6ff);
+        border-color: var(--color-primary-300, #93c5fd);
+        color: var(--color-primary-700, #1d4ed8);
+    }
+
+    .action-btn svg {
+        flex-shrink: 0;
     }
 
     .panel-content {
