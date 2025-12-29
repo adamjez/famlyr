@@ -12,6 +12,7 @@ Famlyr is a family tree application for creating, managing, and visualizing line
 - **Aspire** orchestrates all services (API, PostgreSQL, frontend)
 - **UUIDv7** for all entity IDs (`Guid.CreateVersion7()`)
 - **Frontend**: SvelteKit 5 with TypeScript and Tailwind CSS v4
+- **Central Package Management** - package versions defined in `Directory.Packages.props`
 
 ## Key Design Decisions
 
@@ -64,7 +65,7 @@ dotnet ef database update --project src/Famlyr.Infrastructure --startup-project 
 
 ### Code Quality
 
-- `.editorconfig` defines code style rules (formatting, naming, C# conventions)
+- **Follow `.editorconfig`** - defines code style rules (formatting, naming, C# conventions). All generated code must respect these rules.
 - `EnableNETAnalyzers` and `EnforceCodeStyleInBuild` are enabled in `Directory.Build.props`
 - `AnalysisLevel` set to `latest-recommended`
 
