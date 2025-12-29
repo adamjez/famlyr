@@ -15,6 +15,9 @@
                     <a href="/" class="text-sm font-medium text-neutral-600 hover:text-primary-600 transition-colors">
                         Family Trees
                     </a>
+                    <a href="/import" class="text-sm font-medium text-neutral-600 hover:text-primary-600 transition-colors">
+                        Import
+                    </a>
                 </div>
             </div>
         </nav>

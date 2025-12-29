@@ -59,6 +59,8 @@ dotnet ef database update --project src/Famlyr.Infrastructure --startup-project 
 - Entity configuration via Fluent API in `Infrastructure/Data/Configurations/`
 - Controllers in `Api/Controllers/` with `[ApiController]` attribute
 - Models in `Api/Models/` - separate Request and Response models
+- Do not use `Async` suffix on method names
+- Do not create interfaces for services with only a single implementation unless the interface is used for mocking in tests
 
 ### Code Quality
 

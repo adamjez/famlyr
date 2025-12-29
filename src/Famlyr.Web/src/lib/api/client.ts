@@ -20,6 +20,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return response.json();
 }
 
+async function handleResponseWithErrorBody<T>(response: Response, validErrorStatuses: number[] = [400]): Promise<T> {
+    if (response.ok || validErrorStatuses.includes(response.status)) {
+        return response.json();
+    }
+    throw new ApiError(response.status, response.statusText);
+}
+
 export const api = {
     get: async <T>(endpoint: string): Promise<T> => {
         const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -40,6 +47,22 @@ export const api = {
             body: JSON.stringify(data)
         });
         return handleResponse<T>(response);
+    },
+
+    /**
+     * POST request that returns the response body even for specified error statuses.
+     * Useful for endpoints that return structured error responses (e.g., validation errors).
+     */
+    postWithErrorBody: async <T>(endpoint: string, data: unknown, validErrorStatuses: number[] = [400]): Promise<T> => {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        return handleResponseWithErrorBody<T>(response, validErrorStatuses);
     },
 
     put: async <T>(endpoint: string, data: unknown): Promise<T> => {

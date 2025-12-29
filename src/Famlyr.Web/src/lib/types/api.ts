@@ -55,3 +55,68 @@ export interface FamilyTreeDetailModel {
     persons: PersonModel[];
     relationships: RelationshipModel[];
 }
+
+export interface ImportRequest {
+    version: string;
+    metadata?: ImportMetadata;
+    tree?: ImportTreeInfo;
+    persons: ImportPerson[];
+    relationships?: ImportRelationship[];
+}
+
+export interface ImportMetadata {
+    source?: string;
+    extractedAt?: string;
+    notes?: string;
+}
+
+export interface ImportTreeInfo {
+    name: string;
+    description?: string;
+}
+
+export interface ImportPerson {
+    tempId: string;
+    firstName?: string;
+    lastName?: string;
+    gender?: string;
+    birthDate?: string;
+    deathDate?: string;
+    notes?: string;
+}
+
+export interface ImportRelationship {
+    type: string;
+    person1TempId?: string;
+    person2TempId?: string;
+    parentTempId?: string;
+    childTempId?: string;
+}
+
+export interface ImportResponse {
+    success: boolean;
+    dryRun: boolean;
+    treeId?: string;
+    summary?: ImportSummary;
+    personIdMap?: Record<string, string>;
+    errors?: ImportError[];
+}
+
+export interface ImportSummary {
+    personsCreated: number;
+    relationshipsCreated: number;
+    warnings: ImportWarning[];
+}
+
+export interface ImportError {
+    type: string;
+    tempId?: string;
+    index?: number;
+    field?: string;
+    message: string;
+}
+
+export interface ImportWarning {
+    tempId?: string;
+    message: string;
+}

@@ -21,6 +21,9 @@ public class PersonConfiguration : IEntityTypeConfiguration<Person>
             .HasConversion<string>()
             .HasMaxLength(20);
 
+        builder.Property(p => p.Notes)
+            .HasMaxLength(10000);
+
         builder.Property(p => p.FamilyTreeId)
             .IsRequired();
 
@@ -36,5 +39,10 @@ public class PersonConfiguration : IEntityTypeConfiguration<Person>
             .WithOne(r => r.Relative)
             .HasForeignKey(r => r.RelativeId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(p => p.Photos)
+            .WithOne(pp => pp.Person)
+            .HasForeignKey(pp => pp.PersonId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -13,6 +13,7 @@ public class FamlyrDbContext : DbContext
     public DbSet<FamilyTree> FamilyTrees => Set<FamilyTree>();
     public DbSet<Person> Persons => Set<Person>();
     public DbSet<Relationship> Relationships => Set<Relationship>();
+    public DbSet<PersonPhoto> PersonPhotos => Set<PersonPhoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
