@@ -15,7 +15,14 @@ export class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-        throw new ApiError(response.status, response.statusText);
+        let message: string | undefined;
+        try {
+            const errorBody = await response.json();
+            message = errorBody?.message;
+        } catch {
+            // Response body is not JSON or empty
+        }
+        throw new ApiError(response.status, response.statusText, message);
     }
     return response.json();
 }
@@ -82,7 +89,36 @@ export const api = {
             method: 'DELETE'
         });
         if (!response.ok) {
-            throw new ApiError(response.status, response.statusText);
+            let message: string | undefined;
+            try {
+                const errorBody = await response.json();
+                message = errorBody?.message;
+            } catch {
+                // Response body is not JSON or empty
+            }
+            throw new ApiError(response.status, response.statusText, message);
         }
+    },
+
+    postForm: async <T>(endpoint: string, formData: FormData): Promise<T> => {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json'
+            },
+            body: formData
+        });
+        return handleResponse<T>(response);
+    },
+
+    putForm: async <T>(endpoint: string, formData: FormData): Promise<T> => {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'PUT',
+            headers: {
+                Accept: 'application/json'
+            },
+            body: formData
+        });
+        return handleResponse<T>(response);
     }
 };

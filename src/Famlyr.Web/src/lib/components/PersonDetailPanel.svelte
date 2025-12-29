@@ -1,42 +1,51 @@
 <script lang="ts">
-    import type { PersonModel, RelationshipModel } from '$lib/types/api';
+    import type { PersonModel, PersonRelationshipsResponse, PersonSearchResultModel } from '$lib/types/api';
+    import { getRelationships, addRelationship, removeRelationship } from '$lib/api/persons';
+    import { showToast } from '$lib/stores/toast.svelte';
+    import PersonSearch from './PersonSearch.svelte';
 
     interface Props {
         person: PersonModel;
-        persons: PersonModel[];
-        relationships: RelationshipModel[];
         treeId: string;
         onClose: () => void;
         onSelectPerson: (person: PersonModel) => void;
+        onEdit?: () => void;
+        onRelationshipChange?: () => void;
     }
 
-    let { person, persons, relationships, treeId, onClose, onSelectPerson }: Props = $props();
+    let { person, treeId, onClose, onSelectPerson, onEdit, onRelationshipChange }: Props = $props();
 
-    // Parent relationship: subjectId = child, relativeId = parent
-    const parents = $derived(
-        relationships
-            .filter(r => r.type === 'Parent' && r.subjectId === person.id)
-            .map(r => persons.find(p => p.id === r.relativeId))
-            .filter((p): p is PersonModel => p !== undefined)
-    );
+    let relationships = $state<PersonRelationshipsResponse | null>(null);
+    let isLoadingRelationships = $state(true);
+    let isAddingRelationship = $state(false);
+    let selectedRelationType = $state<'Parent' | 'Child' | 'Spouse'>('Parent');
+    let isSubmitting = $state(false);
+    let deletingRelationshipId = $state<string | null>(null);
 
-    const children = $derived(
-        relationships
-            .filter(r => r.type === 'Parent' && r.relativeId === person.id)
-            .map(r => persons.find(p => p.id === r.subjectId))
-            .filter((p): p is PersonModel => p !== undefined)
-    );
+    const excludePersonIds = $derived(() => {
+        if (!relationships) return [person.id];
+        const relatedIds = [
+            ...relationships.parents.map(r => r.person.id),
+            ...relationships.children.map(r => r.person.id),
+            ...relationships.spouses.map(r => r.person.id)
+        ];
+        return [person.id, ...relatedIds];
+    });
 
-    // Spouse relationship: bidirectional - person can be in either position
-    const spouses = $derived(
-        relationships
-            .filter(r => r.type === 'Spouse' && (r.subjectId === person.id || r.relativeId === person.id))
-            .map(r => {
-                const spouseId = r.subjectId === person.id ? r.relativeId : r.subjectId;
-                return persons.find(p => p.id === spouseId);
-            })
-            .filter((p): p is PersonModel => p !== undefined)
-    );
+    $effect(() => {
+        loadRelationships();
+    });
+
+    async function loadRelationships() {
+        isLoadingRelationships = true;
+        try {
+            relationships = await getRelationships(treeId, person.id);
+        } catch {
+            showToast('Failed to load relationships', 'error');
+        } finally {
+            isLoadingRelationships = false;
+        }
+    }
 
     function formatName(firstName: string | null, lastName: string | null): string {
         if (!firstName && !lastName) return 'Unknown Person';
@@ -54,21 +63,66 @@
 
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === 'Escape') {
-            onClose();
+            if (isAddingRelationship) {
+                isAddingRelationship = false;
+            } else {
+                onClose();
+            }
         }
+    }
+
+    async function handleDeleteRelationship(relationshipId: string) {
+        deletingRelationshipId = relationshipId;
+        try {
+            await removeRelationship(treeId, person.id, relationshipId);
+            showToast('Relationship removed');
+            await loadRelationships();
+            onRelationshipChange?.();
+        } catch (e) {
+            showToast(e instanceof Error ? e.message : 'Failed to remove relationship', 'error');
+        } finally {
+            deletingRelationshipId = null;
+        }
+    }
+
+    async function handleAddRelationship(selectedPerson: PersonSearchResultModel) {
+        isSubmitting = true;
+        try {
+            await addRelationship(treeId, person.id, {
+                relatedPersonId: selectedPerson.id,
+                type: selectedRelationType
+            });
+            showToast('Relationship added');
+            isAddingRelationship = false;
+            await loadRelationships();
+            onRelationshipChange?.();
+        } catch (e) {
+            showToast(e instanceof Error ? e.message : 'Failed to add relationship', 'error');
+        } finally {
+            isSubmitting = false;
+        }
+    }
+
+    function handleSelectRelatedPerson(relatedPerson: { id: string; firstName: string | null; lastName: string | null; gender: string }) {
+        onSelectPerson({
+            id: relatedPerson.id,
+            firstName: relatedPerson.firstName,
+            lastName: relatedPerson.lastName,
+            gender: relatedPerson.gender,
+            birthDate: null,
+            deathDate: null
+        });
     }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- Backdrop -->
 <button
     class="panel-backdrop"
     onclick={onClose}
     aria-label="Close panel"
 ></button>
 
-<!-- Panel -->
 <aside class="detail-panel" role="dialog" aria-label="Person details">
     <header class="panel-header">
         <h3>{formatName(person.firstName, person.lastName)}</h3>
@@ -101,68 +155,157 @@
                 </div>
             {/if}
 
-            {#if parents.length > 0}
+            {#if isLoadingRelationships}
                 <div class="info-item">
-                    <dt>Parents</dt>
-                    <dd>
-                        <ul class="relation-list">
-                            {#each parents as parent}
-                                <li>
-                                    <button
-                                        class="relation-link relation-parent"
-                                        onclick={() => onSelectPerson(parent)}
-                                    >
-                                        {formatName(parent.firstName, parent.lastName)}
-                                    </button>
-                                </li>
-                            {/each}
-                        </ul>
-                    </dd>
+                    <dd class="loading-text">Loading relationships...</dd>
                 </div>
-            {/if}
+            {:else if relationships}
+                {#if relationships.parents.length > 0}
+                    <div class="info-item">
+                        <dt>Parents</dt>
+                        <dd>
+                            <ul class="relation-list">
+                                {#each relationships.parents as rel}
+                                    <li class="relation-item">
+                                        <button
+                                            class="relation-link relation-parent"
+                                            onclick={() => handleSelectRelatedPerson(rel.person)}
+                                        >
+                                            {formatName(rel.person.firstName, rel.person.lastName)}
+                                        </button>
+                                        <button
+                                            class="delete-btn"
+                                            onclick={() => handleDeleteRelationship(rel.relationshipId)}
+                                            disabled={deletingRelationshipId === rel.relationshipId}
+                                            aria-label="Remove relationship"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                        </button>
+                                    </li>
+                                {/each}
+                            </ul>
+                        </dd>
+                    </div>
+                {/if}
 
-            {#if spouses.length > 0}
-                <div class="info-item">
-                    <dt>{spouses.length === 1 ? 'Spouse' : 'Spouses'}</dt>
-                    <dd>
-                        <ul class="relation-list">
-                            {#each spouses as spouse}
-                                <li>
-                                    <button
-                                        class="relation-link relation-spouse"
-                                        onclick={() => onSelectPerson(spouse)}
-                                    >
-                                        {formatName(spouse.firstName, spouse.lastName)}
-                                    </button>
-                                </li>
-                            {/each}
-                        </ul>
-                    </dd>
-                </div>
-            {/if}
+                {#if relationships.spouses.length > 0}
+                    <div class="info-item">
+                        <dt>{relationships.spouses.length === 1 ? 'Spouse' : 'Spouses'}</dt>
+                        <dd>
+                            <ul class="relation-list">
+                                {#each relationships.spouses as rel}
+                                    <li class="relation-item">
+                                        <button
+                                            class="relation-link relation-spouse"
+                                            onclick={() => handleSelectRelatedPerson(rel.person)}
+                                        >
+                                            {formatName(rel.person.firstName, rel.person.lastName)}
+                                        </button>
+                                        <button
+                                            class="delete-btn"
+                                            onclick={() => handleDeleteRelationship(rel.relationshipId)}
+                                            disabled={deletingRelationshipId === rel.relationshipId}
+                                            aria-label="Remove relationship"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                        </button>
+                                    </li>
+                                {/each}
+                            </ul>
+                        </dd>
+                    </div>
+                {/if}
 
-            {#if children.length > 0}
+                {#if relationships.children.length > 0}
+                    <div class="info-item">
+                        <dt>Children</dt>
+                        <dd>
+                            <ul class="relation-list">
+                                {#each relationships.children as rel}
+                                    <li class="relation-item">
+                                        <button
+                                            class="relation-link relation-child"
+                                            onclick={() => handleSelectRelatedPerson(rel.person)}
+                                        >
+                                            {formatName(rel.person.firstName, rel.person.lastName)}
+                                        </button>
+                                        <button
+                                            class="delete-btn"
+                                            onclick={() => handleDeleteRelationship(rel.relationshipId)}
+                                            disabled={deletingRelationshipId === rel.relationshipId}
+                                            aria-label="Remove relationship"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                        </button>
+                                    </li>
+                                {/each}
+                            </ul>
+                        </dd>
+                    </div>
+                {/if}
+
                 <div class="info-item">
-                    <dt>Children</dt>
-                    <dd>
-                        <ul class="relation-list">
-                            {#each children as child}
-                                <li>
-                                    <button
-                                        class="relation-link relation-child"
-                                        onclick={() => onSelectPerson(child)}
-                                    >
-                                        {formatName(child.firstName, child.lastName)}
-                                    </button>
-                                </li>
-                            {/each}
-                        </ul>
-                    </dd>
+                    {#if isAddingRelationship}
+                        <div class="add-relationship-form">
+                            <div class="relationship-type-selector">
+                                <label class="type-option">
+                                    <input type="radio" bind:group={selectedRelationType} value="Parent" />
+                                    <span>Parent</span>
+                                </label>
+                                <label class="type-option">
+                                    <input type="radio" bind:group={selectedRelationType} value="Child" />
+                                    <span>Child</span>
+                                </label>
+                                <label class="type-option">
+                                    <input type="radio" bind:group={selectedRelationType} value="Spouse" />
+                                    <span>Spouse</span>
+                                </label>
+                            </div>
+                            <PersonSearch
+                                {treeId}
+                                excludePersonId={person.id}
+                                onSelect={handleAddRelationship}
+                                placeholder="Search for person..."
+                            />
+                            {#if isSubmitting}
+                                <p class="submitting-text">Adding relationship...</p>
+                            {/if}
+                            <button
+                                type="button"
+                                class="cancel-add-btn"
+                                onclick={() => isAddingRelationship = false}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    {:else}
+                        <button
+                            type="button"
+                            class="add-relationship-btn"
+                            onclick={() => isAddingRelationship = true}
+                        >
+                            + Add Relationship
+                        </button>
+                    {/if}
                 </div>
             {/if}
         </dl>
 
         <div class="panel-actions">
+            {#if onEdit}
+                <button class="btn btn-secondary w-full" onclick={onEdit}>
+                    Edit Person
+                </button>
+            {/if}
             <a href="/tree/{treeId}?focus={person.id}" class="btn btn-primary w-full">
                 View in Tree
             </a>
@@ -290,6 +433,11 @@
         color: var(--color-neutral-700);
     }
 
+    .loading-text {
+        font-size: 0.875rem;
+        color: var(--color-neutral-500);
+    }
+
     .relation-list {
         list-style: none;
         margin: 0;
@@ -299,9 +447,15 @@
         gap: 6px;
     }
 
+    .relation-item {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+    }
+
     .relation-link {
+        flex: 1;
         display: block;
-        width: 100%;
         padding: 10px 14px;
         border: none;
         border-radius: 8px;
@@ -329,10 +483,101 @@
         border-left: 3px solid #c96b2e;
     }
 
+    .delete-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        border: none;
+        border-radius: 8px;
+        background-color: var(--color-neutral-100);
+        color: var(--color-neutral-500);
+        cursor: pointer;
+        transition: all 150ms;
+    }
+
+    .delete-btn:hover:not(:disabled) {
+        background-color: #fef2f2;
+        color: #dc2626;
+    }
+
+    .delete-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .add-relationship-btn {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px dashed var(--color-neutral-300);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--color-neutral-600);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 150ms;
+    }
+
+    .add-relationship-btn:hover {
+        border-color: var(--color-primary-500);
+        color: var(--color-primary-600);
+    }
+
+    .add-relationship-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        background-color: var(--color-neutral-50);
+        border-radius: 8px;
+    }
+
+    .relationship-type-selector {
+        display: flex;
+        gap: 12px;
+    }
+
+    .type-option {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.875rem;
+        color: var(--color-neutral-700);
+        cursor: pointer;
+    }
+
+    .type-option input {
+        accent-color: var(--color-primary-500);
+    }
+
+    .submitting-text {
+        font-size: 0.875rem;
+        color: var(--color-neutral-500);
+        margin: 0;
+    }
+
+    .cancel-add-btn {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 6px;
+        background-color: var(--color-neutral-200);
+        color: var(--color-neutral-700);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 150ms;
+    }
+
+    .cancel-add-btn:hover {
+        background-color: var(--color-neutral-300);
+    }
+
     .panel-actions {
         margin-top: 24px;
         padding-top: 24px;
         border-top: 1px solid var(--color-neutral-200);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
     }
 
     .w-full {

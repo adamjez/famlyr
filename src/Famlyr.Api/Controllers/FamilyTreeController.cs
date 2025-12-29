@@ -1,4 +1,6 @@
+using Famlyr.Api.Helpers;
 using Famlyr.Api.Models;
+using Famlyr.Core.Enums;
 using Famlyr.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,22 +32,26 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
     {
         var result = await context.FamilyTrees
             .Where(ft => ft.Id == id)
-            .Select(ft => new FamilyTreeModel
+            .Select(ft => new
             {
-                Id = ft.Id,
-                Name = ft.Name,
-                Description = ft.Description,
-                OwnerId = ft.OwnerId,
-                CreatedAt = ft.CreatedAt,
-                UpdatedAt = ft.UpdatedAt,
-                Persons = ft.Persons.Select(p => new PersonModel
+                ft.Id,
+                ft.Name,
+                ft.Description,
+                ft.OwnerId,
+                ft.CreatedAt,
+                ft.UpdatedAt,
+                Persons = ft.Persons.Select(p => new
                 {
-                    Id = p.Id,
-                    FirstName = p.FirstName,
-                    LastName = p.LastName,
-                    Gender = p.Gender,
-                    BirthDate = p.BirthDate,
-                    DeathDate = p.DeathDate
+                    p.Id,
+                    p.FirstName,
+                    p.LastName,
+                    p.Gender,
+                    p.BirthYear,
+                    p.BirthMonth,
+                    p.BirthDay,
+                    p.DeathYear,
+                    p.DeathMonth,
+                    p.DeathDay
                 }).ToList(),
                 Relationships = ft.Persons
                     .SelectMany(p => p.RelationshipsAsSubject)
@@ -64,7 +70,25 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             return NotFound();
         }
 
-        return Ok(result);
+        return Ok(new FamilyTreeModel
+        {
+            Id = result.Id,
+            Name = result.Name,
+            Description = result.Description,
+            OwnerId = result.OwnerId,
+            CreatedAt = result.CreatedAt,
+            UpdatedAt = result.UpdatedAt,
+            Persons = result.Persons.Select(p => new PersonModel
+            {
+                Id = p.Id,
+                FirstName = p.FirstName,
+                LastName = p.LastName,
+                Gender = p.Gender,
+                BirthDate = DateHelper.FormatDate(p.BirthYear, p.BirthMonth, p.BirthDay),
+                DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay)
+            }).ToList(),
+            Relationships = result.Relationships
+        });
     }
 
     [HttpGet("{id:guid}/details")]
@@ -80,15 +104,21 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                 ft.CreatedAt,
                 ft.UpdatedAt,
                 Persons = ft.Persons
-                    .OrderByDescending(p => p.BirthDate)
-                    .Select(p => new PersonModel
+                    .OrderByDescending(p => p.BirthYear)
+                    .ThenByDescending(p => p.BirthMonth)
+                    .ThenByDescending(p => p.BirthDay)
+                    .Select(p => new
                     {
-                        Id = p.Id,
-                        FirstName = p.FirstName,
-                        LastName = p.LastName,
-                        Gender = p.Gender,
-                        BirthDate = p.BirthDate,
-                        DeathDate = p.DeathDate
+                        p.Id,
+                        p.FirstName,
+                        p.LastName,
+                        p.Gender,
+                        p.BirthYear,
+                        p.BirthMonth,
+                        p.BirthDay,
+                        p.DeathYear,
+                        p.DeathMonth,
+                        p.DeathDay
                     }).ToList(),
                 Relationships = ft.Persons
                     .SelectMany(p => p.RelationshipsAsSubject)
@@ -107,10 +137,20 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             return NotFound();
         }
 
+        var persons = result.Persons.Select(p => new PersonModel
+        {
+            Id = p.Id,
+            FirstName = p.FirstName,
+            LastName = p.LastName,
+            Gender = p.Gender,
+            BirthDate = DateHelper.FormatDate(p.BirthYear, p.BirthMonth, p.BirthDay),
+            DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay)
+        }).ToList();
+
         var allYears = result.Persons
-            .SelectMany(p => new[] { p.BirthDate, p.DeathDate })
-            .Where(d => d != null)
-            .Select(d => d!.Value.Year)
+            .SelectMany(p => new[] { p.BirthYear, p.DeathYear })
+            .Where(y => y != null)
+            .Select(y => y!.Value)
             .ToList();
 
         var yearRange = allYears.Count > 0
@@ -124,10 +164,138 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             Description = result.Description,
             CreatedAt = result.CreatedAt,
             UpdatedAt = result.UpdatedAt,
-            PersonCount = result.Persons.Count,
+            PersonCount = persons.Count,
             YearRange = yearRange,
-            Persons = result.Persons,
+            Persons = persons,
             Relationships = result.Relationships
+        });
+    }
+
+    [HttpGet("{id:guid}/statistics")]
+    public async Task<ActionResult<TreeStatisticsModel>> GetTreeStatistics(Guid id)
+    {
+        var treeData = await context.FamilyTrees
+            .Where(ft => ft.Id == id)
+            .Select(ft => new
+            {
+                TreeId = ft.Id,
+                Persons = ft.Persons.Select(p => new
+                {
+                    p.FirstName,
+                    p.LastName,
+                    p.Gender,
+                    p.BirthYear,
+                    p.BirthMonth,
+                    p.BirthDay,
+                    p.DeathYear
+                }).ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (treeData is null)
+        {
+            return NotFound();
+        }
+
+        var persons = treeData.Persons;
+        var total = persons.Count;
+
+        // Summary stats
+        var withBirthDate = persons.Count(p => p.BirthYear.HasValue);
+        var withDeathDate = persons.Count(p => p.DeathYear.HasValue);
+        var living = persons.Count(p => p.BirthYear.HasValue && !p.DeathYear.HasValue);
+
+        // Gender stats
+        var genderGroups = persons.GroupBy(p => p.Gender).ToDictionary(g => g.Key, g => g.Count());
+
+        // Lifespan stats
+        var lifespans = persons
+            .Where(p => p.BirthYear.HasValue && p.DeathYear.HasValue)
+            .Select(p => p.DeathYear!.Value - p.BirthYear!.Value)
+            .ToList();
+
+        // Name stats - top 10, group nulls as "(Unknown)"
+        var firstNameStats = persons
+            .GroupBy(p => p.FirstName ?? "(Unknown)")
+            .Select(g => new NameStatItem(g.Key, g.Count()))
+            .OrderByDescending(n => n.Count)
+            .ThenBy(n => n.Name)
+            .Take(10)
+            .ToList();
+
+        var lastNameStats = persons
+            .GroupBy(p => p.LastName ?? "(Unknown)")
+            .Select(g => new NameStatItem(g.Key, g.Count()))
+            .OrderByDescending(n => n.Count)
+            .ThenBy(n => n.Name)
+            .Take(10)
+            .ToList();
+
+        // Birth date stats - requires complete dates for weekday/day
+        var fullBirthDates = persons
+            .Where(p => p.BirthYear.HasValue && p.BirthMonth.HasValue && p.BirthDay.HasValue)
+            .Select(p => new DateOnly(p.BirthYear!.Value, p.BirthMonth!.Value, p.BirthDay!.Value))
+            .ToList();
+
+        string[] weekdayLabels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        var weekdayStats = Enumerable.Range(0, 7)
+            .Select(day => new WeekdayStatItem(
+                day,
+                weekdayLabels[day],
+                fullBirthDates.Count(d => (int)d.DayOfWeek == day)))
+            .ToList();
+
+        var dayOfMonthStats = Enumerable.Range(1, 31)
+            .Select(day => new DayOfMonthStatItem(day, fullBirthDates.Count(d => d.Day == day)))
+            .ToList();
+
+        string[] monthLabels = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        var monthDates = persons
+            .Where(p => p.BirthYear.HasValue && p.BirthMonth.HasValue)
+            .Select(p => p.BirthMonth!.Value)
+            .ToList();
+
+        var monthStats = Enumerable.Range(1, 12)
+            .Select(month => new MonthStatItem(month, monthLabels[month - 1], monthDates.Count(m => m == month)))
+            .ToList();
+
+        // Decade stats
+        var decadeStats = persons
+            .Where(p => p.BirthYear.HasValue)
+            .GroupBy(p => (p.BirthYear!.Value / 10) * 10)
+            .Select(g => new DecadeStatItem(g.Key, g.Count()))
+            .OrderBy(d => d.Decade)
+            .ToList();
+
+        return Ok(new TreeStatisticsModel
+        {
+            Summary = new SummaryStats
+            {
+                TotalPersons = total,
+                PersonsWithBirthDate = withBirthDate,
+                PersonsWithDeathDate = withDeathDate,
+                LivingPersons = living
+            },
+            GenderStats = new GenderStats
+            {
+                Male = genderGroups.GetValueOrDefault(Gender.Male),
+                Female = genderGroups.GetValueOrDefault(Gender.Female),
+                Other = genderGroups.GetValueOrDefault(Gender.Other),
+                Unknown = genderGroups.GetValueOrDefault(Gender.Unknown)
+            },
+            LifespanStats = new LifespanStats
+            {
+                AverageLifespanYears = lifespans.Count > 0 ? Math.Round(lifespans.Average(), 1) : null,
+                OldestDeathAge = lifespans.Count > 0 ? lifespans.Max() : null,
+                YoungestDeathAge = lifespans.Count > 0 ? lifespans.Min() : null,
+                PersonsWithLifespan = lifespans.Count
+            },
+            FirstNameStats = firstNameStats,
+            LastNameStats = lastNameStats,
+            BirthWeekdayStats = weekdayStats,
+            BirthDayOfMonthStats = dayOfMonthStats,
+            BirthMonthStats = monthStats,
+            BirthDecadeStats = decadeStats
         });
     }
 }

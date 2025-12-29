@@ -168,13 +168,20 @@ public class ImportService(FamlyrDbContext context) : IImportService
 
         foreach (var importPerson in request.Persons)
         {
+            var birthDate = validation.ParsedBirthDates[importPerson.TempId];
+            var deathDate = validation.ParsedDeathDates[importPerson.TempId];
+
             var person = new Person
             {
                 FirstName = string.IsNullOrWhiteSpace(importPerson.FirstName) ? null : importPerson.FirstName.Trim(),
                 LastName = string.IsNullOrWhiteSpace(importPerson.LastName) ? null : importPerson.LastName.Trim(),
                 Gender = validation.ParsedGenders[importPerson.TempId],
-                BirthDate = validation.ParsedBirthDates[importPerson.TempId],
-                DeathDate = validation.ParsedDeathDates[importPerson.TempId],
+                BirthYear = birthDate?.Year,
+                BirthMonth = birthDate?.Month,
+                BirthDay = birthDate?.Day,
+                DeathYear = deathDate?.Year,
+                DeathMonth = deathDate?.Month,
+                DeathDay = deathDate?.Day,
                 Notes = string.IsNullOrWhiteSpace(importPerson.Notes) ? null : importPerson.Notes.Trim(),
                 FamilyTreeId = treeId
             };

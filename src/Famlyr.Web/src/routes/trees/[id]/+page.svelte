@@ -1,11 +1,17 @@
 <script lang="ts">
+    import { invalidateAll } from "$app/navigation";
     import type { PageData } from "./$types";
-    import type { PersonModel } from "$lib/types/api";
+    import type { PersonModel, PersonDetailModel } from "$lib/types/api";
+    import { getPerson } from "$lib/api/persons";
+    import { showToast } from "$lib/stores/toast.svelte";
     import PersonDetailPanel from "$lib/components/PersonDetailPanel.svelte";
+    import PersonFormPanel from "$lib/components/PersonFormPanel.svelte";
 
     let { data }: { data: PageData } = $props();
 
     let selectedPerson: PersonModel | null = $state(null);
+    let editingPerson: PersonDetailModel | null = $state(null);
+    let showAddPerson = $state(false);
 
     function formatDate(dateString: string): string {
         return new Date(dateString).toLocaleDateString(undefined, {
@@ -43,6 +49,29 @@
     function closePanel() {
         selectedPerson = null;
     }
+
+    function openAddPerson() {
+        showAddPerson = true;
+    }
+
+    function closeFormPanel() {
+        showAddPerson = false;
+        editingPerson = null;
+    }
+
+    async function openEditPerson() {
+        if (!selectedPerson) return;
+        const personDetail = await getPerson(data.tree.id, selectedPerson.id);
+        editingPerson = personDetail;
+        selectedPerson = null;
+    }
+
+    async function handlePersonSaved() {
+        const isEdit = !!editingPerson;
+        closeFormPanel();
+        await invalidateAll();
+        showToast(isEdit ? 'Person updated successfully' : 'Person added successfully');
+    }
 </script>
 
 <svelte:head>
@@ -66,7 +95,11 @@
                     <p class="mt-2 text-neutral-600">{data.tree.description}</p>
                 {/if}
             </div>
-            <a href="/tree/{data.tree.id}" class="btn btn-primary">View Tree</a>
+            <div class="flex gap-3">
+                <button class="btn btn-secondary" onclick={openAddPerson}>Add Person</button>
+                <a href="/trees/{data.tree.id}/statistics" class="btn btn-secondary">Statistics</a>
+                <a href="/tree/{data.tree.id}" class="btn btn-primary">View Tree</a>
+            </div>
         </div>
         <div class="mt-4 flex gap-6 text-sm text-neutral-500">
             <span>Created: {formatDate(data.tree.createdAt)}</span>
@@ -119,10 +152,26 @@
 {#if selectedPerson}
     <PersonDetailPanel
         person={selectedPerson}
-        persons={data.tree.persons}
-        relationships={data.tree.relationships}
         treeId={data.tree.id}
         onClose={closePanel}
         onSelectPerson={selectPerson}
+        onEdit={openEditPerson}
+        onRelationshipChange={() => invalidateAll()}
+    />
+{/if}
+
+<!-- Person Form Panel (Add/Edit) -->
+{#if showAddPerson}
+    <PersonFormPanel
+        treeId={data.tree.id}
+        onClose={closeFormPanel}
+        onSave={handlePersonSaved}
+    />
+{:else if editingPerson}
+    <PersonFormPanel
+        treeId={data.tree.id}
+        person={editingPerson}
+        onClose={closeFormPanel}
+        onSave={handlePersonSaved}
     />
 {/if}

@@ -10,6 +10,72 @@ export interface PersonModel {
     deathDate: string | null;
 }
 
+export interface PersonPhotoModel {
+    id: string;
+    isPrimary: boolean;
+    createdAt: string;
+    order: number;
+    imageUrl: string;
+}
+
+export interface PersonDetailModel {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    gender: string;
+    birthDate: string | null;
+    deathDate: string | null;
+    notes: string | null;
+    photos: PersonPhotoModel[];
+}
+
+export interface PersonSearchResultModel {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    gender: string;
+    birthDate: string | null;
+    deathDate: string | null;
+}
+
+export interface PersonSearchResponse {
+    persons: PersonSearchResultModel[];
+}
+
+export interface PhotoReorderResponse {
+    photos: PersonPhotoModel[];
+}
+
+export interface RelatedPersonModel {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    gender: string;
+}
+
+export interface PersonRelationshipModel {
+    relationshipId: string;
+    person: RelatedPersonModel;
+}
+
+export interface PersonRelationshipsResponse {
+    parents: PersonRelationshipModel[];
+    children: PersonRelationshipModel[];
+    spouses: PersonRelationshipModel[];
+}
+
+export interface RelationshipCreatedModel {
+    id: string;
+    type: string;
+    subjectId: string;
+    relativeId: string;
+}
+
+export interface ErrorResponse {
+    code: string;
+    message: string;
+}
+
 export interface RelationshipModel {
     id: string;
     type: RelationshipType;
@@ -119,4 +185,64 @@ export interface ImportError {
 export interface ImportWarning {
     tempId?: string;
     message: string;
+}
+
+export interface TreeStatisticsModel {
+    summary: SummaryStats;
+    genderStats: GenderStats;
+    lifespanStats: LifespanStats;
+    firstNameStats: NameStatItem[];
+    lastNameStats: NameStatItem[];
+    birthWeekdayStats: WeekdayStatItem[];
+    birthDayOfMonthStats: DayOfMonthStatItem[];
+    birthMonthStats: MonthStatItem[];
+    birthDecadeStats: DecadeStatItem[];
+}
+
+export interface SummaryStats {
+    totalPersons: number;
+    personsWithBirthDate: number;
+    personsWithDeathDate: number;
+    livingPersons: number;
+}
+
+export interface GenderStats {
+    male: number;
+    female: number;
+    other: number;
+    unknown: number;
+}
+
+export interface LifespanStats {
+    averageLifespanYears: number | null;
+    oldestDeathAge: number | null;
+    youngestDeathAge: number | null;
+    personsWithLifespan: number;
+}
+
+export interface NameStatItem {
+    name: string;
+    count: number;
+}
+
+export interface WeekdayStatItem {
+    weekday: number;
+    label: string;
+    count: number;
+}
+
+export interface DayOfMonthStatItem {
+    day: number;
+    count: number;
+}
+
+export interface MonthStatItem {
+    month: number;
+    label: string;
+    count: number;
+}
+
+export interface DecadeStatItem {
+    decade: number;
+    count: number;
 }

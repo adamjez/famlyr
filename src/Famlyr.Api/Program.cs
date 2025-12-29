@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Famlyr.Api.Services;
 using Famlyr.Infrastructure.Data;
 using Famlyr.Infrastructure.Services.Import;
 
@@ -9,6 +10,7 @@ builder.AddServiceDefaults();
 builder.AddNpgsqlDbContext<FamlyrDbContext>("famlyrdb");
 
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<PhotoValidationService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

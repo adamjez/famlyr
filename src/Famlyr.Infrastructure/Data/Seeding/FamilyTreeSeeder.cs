@@ -62,9 +62,13 @@ public static class FamilyTreeSeeder
 
         // Start with a single founding couple to ensure connected tree
         var founder = CreatePerson(random, Gender.Male, "Smith", 1880, tree.Id);
-        founder.DeathDate = new DateOnly(1955, random.Next(1, 13), random.Next(1, 28));
+        founder.DeathYear = 1955;
+        founder.DeathMonth = random.Next(1, 13);
+        founder.DeathDay = random.Next(1, 28);
         var founderWife = CreatePerson(random, Gender.Female, GetLastName(random), 1882, tree.Id);
-        founderWife.DeathDate = new DateOnly(1960, random.Next(1, 13), random.Next(1, 28));
+        founderWife.DeathYear = 1960;
+        founderWife.DeathMonth = random.Next(1, 13);
+        founderWife.DeathDay = random.Next(1, 28);
 
         persons.Add(founder);
         persons.Add(founderWife);
@@ -114,7 +118,9 @@ public static class FamilyTreeSeeder
                         var deathYear = birthYear + 60 + random.Next(0, 30);
                         if (deathYear <= 2024)
                         {
-                            child.DeathDate = new DateOnly(deathYear, random.Next(1, 13), random.Next(1, 28));
+                            child.DeathYear = deathYear;
+                            child.DeathMonth = random.Next(1, 13);
+                            child.DeathDay = random.Next(1, 28);
                         }
                     }
                     else if (generation == 4 && random.NextDouble() > 0.7)
@@ -122,7 +128,9 @@ public static class FamilyTreeSeeder
                         var deathYear = birthYear + 70 + random.Next(0, 20);
                         if (deathYear <= 2024)
                         {
-                            child.DeathDate = new DateOnly(deathYear, random.Next(1, 13), random.Next(1, 28));
+                            child.DeathYear = deathYear;
+                            child.DeathMonth = random.Next(1, 13);
+                            child.DeathDay = random.Next(1, 28);
                         }
                     }
 
@@ -157,7 +165,9 @@ public static class FamilyTreeSeeder
                                 var deathYear = spouseBirthYear + 60 + random.Next(0, 30);
                                 if (deathYear <= 2024)
                                 {
-                                    spouse.DeathDate = new DateOnly(deathYear, random.Next(1, 13), random.Next(1, 28));
+                                    spouse.DeathYear = deathYear;
+                                    spouse.DeathMonth = random.Next(1, 13);
+                                    spouse.DeathDay = random.Next(1, 28);
                                 }
                             }
                             persons.Add(spouse);
@@ -208,7 +218,9 @@ public static class FamilyTreeSeeder
             FirstName = firstName,
             LastName = lastName,
             Gender = gender,
-            BirthDate = new DateOnly(birthYear, random.Next(1, 13), random.Next(1, 28)),
+            BirthYear = birthYear,
+            BirthMonth = random.Next(1, 13),
+            BirthDay = random.Next(1, 28),
             FamilyTreeId = familyTreeId
         };
     }

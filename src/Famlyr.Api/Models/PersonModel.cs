@@ -8,6 +8,6 @@ public class PersonModel
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
     public Gender Gender { get; init; }
-    public DateOnly? BirthDate { get; init; }
-    public DateOnly? DeathDate { get; init; }
+    public string? BirthDate { get; init; }
+    public string? DeathDate { get; init; }
 }
