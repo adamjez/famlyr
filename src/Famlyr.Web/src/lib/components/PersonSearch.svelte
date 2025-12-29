@@ -35,10 +35,9 @@
     async function performSearch() {
         if (query.trim().length < 2) {
             results = [];
+            isSearching = false;
             return;
         }
-
-        isSearching = true;
         try {
             const response = await searchPersons(treeId, query, { excludePersonId });
             results = response.persons;
@@ -53,6 +52,9 @@
         showDropdown = true;
         if (debounceTimer) {
             clearTimeout(debounceTimer);
+        }
+        if (query.trim().length >= 2) {
+            isSearching = true;
         }
         debounceTimer = setTimeout(performSearch, 300);
     }
