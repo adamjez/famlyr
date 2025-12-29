@@ -122,6 +122,16 @@ export interface FamilyTreeDetailModel {
     relationships: RelationshipModel[];
 }
 
+export interface CreateFamilyTreeRequest {
+    name: string;
+    description?: string;
+}
+
+export interface UpdateFamilyTreeRequest {
+    name: string;
+    description?: string;
+}
+
 export interface ImportRequest {
     version: string;
     metadata?: ImportMetadata;

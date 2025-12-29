@@ -1,4 +1,11 @@
-import type { FamilyTreeModel, FamilyTreeListResponse, FamilyTreeDetailModel, TreeStatisticsModel } from '$lib/types/api';
+import type {
+    FamilyTreeModel,
+    FamilyTreeListResponse,
+    FamilyTreeDetailModel,
+    TreeStatisticsModel,
+    CreateFamilyTreeRequest,
+    UpdateFamilyTreeRequest
+} from '$lib/types/api';
 import { api } from './client';
 
 export async function getFamilyTree(id: string): Promise<FamilyTreeModel> {
@@ -15,4 +22,16 @@ export async function getTreeDetails(id: string): Promise<FamilyTreeDetailModel>
 
 export async function getTreeStatistics(id: string): Promise<TreeStatisticsModel> {
     return api.get<TreeStatisticsModel>(`/api/trees/${id}/statistics`);
+}
+
+export async function createFamilyTree(data: CreateFamilyTreeRequest): Promise<FamilyTreeDetailModel> {
+    return api.post<FamilyTreeDetailModel>('/api/trees', data);
+}
+
+export async function updateFamilyTree(id: string, data: UpdateFamilyTreeRequest): Promise<FamilyTreeDetailModel> {
+    return api.put<FamilyTreeDetailModel>(`/api/trees/${id}`, data);
+}
+
+export async function deleteFamilyTree(id: string): Promise<void> {
+    return api.delete(`/api/trees/${id}`);
 }

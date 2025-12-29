@@ -1,11 +1,14 @@
 <script lang="ts">
-    import { invalidateAll } from "$app/navigation";
+    import { goto, invalidateAll } from "$app/navigation";
     import type { PageData } from "./$types";
     import type { PersonModel, PersonDetailModel } from "$lib/types/api";
     import { getPerson } from "$lib/api/persons";
+    import { deleteFamilyTree } from "$lib/api/familyTree";
     import { showToast } from "$lib/stores/toast.svelte";
     import PersonDetailPanel from "$lib/components/PersonDetailPanel.svelte";
     import PersonFormPanel from "$lib/components/PersonFormPanel.svelte";
+    import TreeFormPanel from "$lib/components/TreeFormPanel.svelte";
+    import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
     import TreeSearch from "$lib/components/tree/TreeSearch.svelte";
 
     let { data }: { data: PageData } = $props();
@@ -13,6 +16,9 @@
     let selectedPerson: PersonModel | null = $state(null);
     let editingPerson: PersonDetailModel | null = $state(null);
     let showAddPerson = $state(false);
+    let showEditTree = $state(false);
+    let showDeleteConfirm = $state(false);
+    let isDeleting = $state(false);
     let searchRef: TreeSearch | null = $state(null);
 
     function formatDate(dateString: string): string {
@@ -79,6 +85,26 @@
         selectedPerson = person;
     }
 
+    async function handleTreeSaved() {
+        showEditTree = false;
+        await invalidateAll();
+        showToast('Tree updated successfully');
+    }
+
+    async function handleDeleteTree() {
+        isDeleting = true;
+        try {
+            await deleteFamilyTree(data.tree.id);
+            showToast('Tree deleted successfully');
+            goto('/');
+        } catch (e) {
+            showToast(e instanceof Error ? e.message : 'Failed to delete tree', 'error');
+            showDeleteConfirm = false;
+        } finally {
+            isDeleting = false;
+        }
+    }
+
     function handleGlobalKeydown(event: KeyboardEvent) {
         if (
             event.target instanceof HTMLInputElement ||
@@ -111,11 +137,37 @@
     <!-- Header Section -->
     <div>
         <div class="flex items-start justify-between">
-            <div>
-                <h1>{data.tree.name}</h1>
-                {#if data.tree.description}
-                    <p class="mt-2 text-neutral-600">{data.tree.description}</p>
-                {/if}
+            <div class="flex items-start gap-3">
+                <div>
+                    <h1>{data.tree.name}</h1>
+                    {#if data.tree.description}
+                        <p class="mt-2 text-neutral-600">{data.tree.description}</p>
+                    {/if}
+                </div>
+                <div class="flex gap-1 flex-shrink-0">
+                    <button
+                        class="icon-btn"
+                        onclick={() => showEditTree = true}
+                        title="Edit tree"
+                        aria-label="Edit tree"
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    </button>
+                    <button
+                        class="icon-btn icon-btn-danger"
+                        onclick={() => showDeleteConfirm = true}
+                        title="Delete tree"
+                        aria-label="Delete tree"
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
                 <button class="btn btn-secondary whitespace-nowrap" onclick={openAddPerson}>Add Person</button>
@@ -209,3 +261,51 @@
         onSave={handlePersonSaved}
     />
 {/if}
+
+<!-- Tree Form Panel (Edit) -->
+{#if showEditTree}
+    <TreeFormPanel
+        tree={data.tree}
+        onClose={() => showEditTree = false}
+        onSave={handleTreeSaved}
+    />
+{/if}
+
+<!-- Delete Confirmation Dialog -->
+{#if showDeleteConfirm}
+    <ConfirmDialog
+        title="Delete Tree"
+        message="Are you sure you want to delete '{data.tree.name}'? This will permanently remove all {data.tree.personCount} persons and their data. This action cannot be undone."
+        confirmText="Delete"
+        confirmVariant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleDeleteTree}
+        onCancel={() => showDeleteConfirm = false}
+    />
+{/if}
+
+<style>
+    .icon-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        background-color: transparent;
+        color: var(--color-neutral-500);
+        cursor: pointer;
+        transition: all 150ms;
+    }
+
+    .icon-btn:hover {
+        background-color: var(--color-neutral-100);
+        color: var(--color-neutral-700);
+    }
+
+    .icon-btn-danger:hover {
+        background-color: var(--color-error-50, #fef2f2);
+        color: var(--color-error-600, #dc2626);
+    }
+</style>

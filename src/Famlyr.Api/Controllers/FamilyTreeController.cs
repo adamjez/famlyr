@@ -1,5 +1,6 @@
 using Famlyr.Api.Helpers;
 using Famlyr.Api.Models;
+using Famlyr.Core.Entities;
 using Famlyr.Core.Enums;
 using Famlyr.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -297,5 +298,83 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             BirthMonthStats = monthStats,
             BirthDecadeStats = decadeStats
         });
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<FamilyTreeDetailModel>> CreateFamilyTree([FromBody] CreateFamilyTreeRequest request)
+    {
+        var name = request.Name?.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new ErrorResponse { Code = "NAME_REQUIRED", Message = "Name is required" });
+
+        if (name.Length > 200)
+            return BadRequest(new ErrorResponse { Code = "NAME_TOO_LONG", Message = "Name must not exceed 200 characters" });
+
+        if (request.Description?.Length > 2000)
+            return BadRequest(new ErrorResponse { Code = "DESCRIPTION_TOO_LONG", Message = "Description must not exceed 2000 characters" });
+
+        var tree = new FamilyTree
+        {
+            Name = name,
+            Description = request.Description,
+            OwnerId = Guid.Parse("00000000-0000-0000-0000-000000000001")
+        };
+
+        context.FamilyTrees.Add(tree);
+        await context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetFamilyTreeDetails), new { id = tree.Id }, new FamilyTreeDetailModel
+        {
+            Id = tree.Id,
+            Name = tree.Name,
+            Description = tree.Description,
+            CreatedAt = tree.CreatedAt,
+            UpdatedAt = tree.UpdatedAt,
+            PersonCount = 0,
+            YearRange = null,
+            Persons = [],
+            Relationships = []
+        });
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<FamilyTreeDetailModel>> UpdateFamilyTree(Guid id, [FromBody] UpdateFamilyTreeRequest request)
+    {
+        var name = request.Name?.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new ErrorResponse { Code = "NAME_REQUIRED", Message = "Name is required" });
+
+        if (name.Length > 200)
+            return BadRequest(new ErrorResponse { Code = "NAME_TOO_LONG", Message = "Name must not exceed 200 characters" });
+
+        if (request.Description?.Length > 2000)
+            return BadRequest(new ErrorResponse { Code = "DESCRIPTION_TOO_LONG", Message = "Description must not exceed 2000 characters" });
+
+        var tree = await context.FamilyTrees.FindAsync(id);
+        if (tree is null)
+            return NotFound(new ErrorResponse { Code = "TREE_NOT_FOUND", Message = "Family tree not found" });
+
+        tree.Name = name;
+        tree.Description = request.Description;
+        tree.UpdatedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
+
+        return await GetFamilyTreeDetails(id);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteFamilyTree(Guid id)
+    {
+        var tree = await context.FamilyTrees.FindAsync(id);
+        if (tree is null)
+            return NotFound(new ErrorResponse { Code = "TREE_NOT_FOUND", Message = "Family tree not found" });
+
+        context.FamilyTrees.Remove(tree);
+        await context.SaveChangesAsync();
+
+        return NoContent();
     }
 }
