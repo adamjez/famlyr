@@ -103,12 +103,12 @@
         }
     }
 
-    function handleSelectRelatedPerson(relatedPerson: { id: string; firstName: string | null; lastName: string | null; gender: Gender }) {
+    function handleSelectRelatedPerson(relatedPerson: { id: string; firstName: string | null; lastName: string | null; gender: string }) {
         onSelectPerson({
             id: relatedPerson.id,
             firstName: relatedPerson.firstName,
             lastName: relatedPerson.lastName,
-            gender: relatedPerson.gender,
+            gender: relatedPerson.gender as Gender,
             birthDate: null,
             deathDate: null
         });
