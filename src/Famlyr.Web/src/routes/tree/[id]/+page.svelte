@@ -43,7 +43,7 @@
     </header>
 
     {#if TreeViewer}
-        <TreeViewer tree={data.tree} {focusPersonId} />
+        <TreeViewer tree={data.tree} initialFocusPersonId={focusPersonId} />
     {:else}
         <div class="tree-loading">
             <p>Loading tree viewer...</p>

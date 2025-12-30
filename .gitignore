@@ -61,3 +61,6 @@ settings.local.json
 
 # JetBrains Rider
 .idea/
+
+# Local data files
+data/

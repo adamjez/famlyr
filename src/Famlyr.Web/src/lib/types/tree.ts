@@ -5,6 +5,14 @@ export interface Position {
     y: number;
 }
 
+export interface FamilyNode {
+    id: string;
+    parentIds: string[];
+    childIds: string[];
+    layer: number;
+    position: Position;
+}
+
 export interface TreeNode {
     id: string;
     person: PersonModel;
@@ -32,7 +40,7 @@ export interface TreeBounds {
 }
 
 export interface TreeConnection {
-    type: 'parent-child' | 'spouse';
+    type: 'parent-child' | 'spouse' | 'coparent';
     fromIds: string[];
     toIds: string[];
 }
@@ -42,6 +50,7 @@ export interface TreeLayout {
     bounds: TreeBounds;
     layers: Map<number, TreeNode[]>;
     connections: TreeConnection[];
+    familyNodes: Map<string, FamilyNode>;
 }
 
 export interface Viewport {
@@ -63,10 +72,10 @@ export interface LayoutConfig {
 }
 
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
-    siblingGap: 200,
+    siblingGap: 40,
     generationGap: 150,
-    spouseGap: 50,
-    branchGap: 100,
+    spouseGap: 10,
+    branchGap: 60,
     nodeWidth: 160,
     nodeHeight: 80,
     padding: 100

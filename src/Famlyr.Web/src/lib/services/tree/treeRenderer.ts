@@ -1,5 +1,5 @@
 import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent, Sprite, Texture, Assets } from 'pixi.js';
-import type { TreeLayout, TreeNode, TreeConnection, Viewport, LODLevel } from '$lib/types/tree';
+import type { TreeLayout, TreeNode, TreeConnection, Viewport, LODLevel, FamilyNode } from '$lib/types/tree';
 import { LOD_CONFIGS } from '$lib/types/tree';
 import type { Gender, PersonModel } from '$lib/types/api';
 
@@ -92,11 +92,102 @@ export class TreeRenderer {
         const graphics = new Graphics();
         this.treeContainer.addChild(graphics);
 
+        if (layout.familyNodes.size > 0) {
+            this.drawFamilyNodeConnections(graphics, layout);
+        }
+
         for (const connection of layout.connections) {
             if (connection.type === 'spouse') {
                 this.drawSpouseConnection(graphics, connection, layout);
-            } else {
+            } else if (connection.type === 'coparent') {
+                this.drawCoParentConnection(graphics, connection, layout);
+            } else if (layout.familyNodes.size === 0) {
                 this.drawParentChildConnection(graphics, connection, layout);
+            }
+        }
+    }
+
+    private drawFamilyNodeConnections(graphics: Graphics, layout: TreeLayout): void {
+        for (const familyNode of layout.familyNodes.values()) {
+            const parentCenters = familyNode.parentIds
+                .map(id => {
+                    const node = layout.nodes.get(id);
+                    if (!node || !node.isVisible) return null;
+                    return {
+                        x: node.position.x + node.width / 2,
+                        y: node.position.y + node.height
+                    };
+                })
+                .filter((p): p is { x: number; y: number } => p !== null);
+
+            if (parentCenters.length === 0) continue;
+
+            const familyX = familyNode.position.x;
+            const familyY = familyNode.position.y;
+
+            if (parentCenters.length === 2) {
+                const [p1, p2] = parentCenters;
+                const lineY = p1.y + (familyY - p1.y) * 0.3;
+
+                graphics.moveTo(p1.x, p1.y);
+                graphics.lineTo(p1.x, lineY);
+                graphics.stroke({ width: 2, color: COLORS.connectionLine });
+
+                graphics.moveTo(p2.x, p2.y);
+                graphics.lineTo(p2.x, lineY);
+                graphics.stroke({ width: 2, color: COLORS.connectionLine });
+
+                graphics.moveTo(p1.x, lineY);
+                graphics.lineTo(p2.x, lineY);
+                graphics.stroke({ width: 2, color: COLORS.connectionLine });
+
+                const midX = (p1.x + p2.x) / 2;
+                graphics.moveTo(midX, lineY);
+                graphics.lineTo(familyX, familyY);
+                graphics.stroke({ width: 2, color: COLORS.connectionLine });
+            } else {
+                graphics.moveTo(parentCenters[0].x, parentCenters[0].y);
+                graphics.lineTo(familyX, familyY);
+                graphics.stroke({ width: 2, color: COLORS.connectionLine });
+            }
+
+            const childCenters = familyNode.childIds
+                .map(id => {
+                    const node = layout.nodes.get(id);
+                    if (!node || !node.isVisible) return null;
+                    return {
+                        id,
+                        x: node.position.x + node.width / 2,
+                        y: node.position.y
+                    };
+                })
+                .filter((c): c is { id: string; x: number; y: number } => c !== null);
+
+            if (childCenters.length === 0) continue;
+
+            const minChildX = Math.min(...childCenters.map(c => c.x));
+            const maxChildX = Math.max(...childCenters.map(c => c.x));
+
+            const railMinX = Math.min(familyX, minChildX);
+            const railMaxX = Math.max(familyX, maxChildX);
+
+            if (childCenters.length > 1 || Math.abs(familyX - childCenters[0].x) > 1) {
+                graphics.moveTo(railMinX, familyY);
+                graphics.lineTo(railMaxX, familyY);
+                graphics.stroke({ width: 2, color: COLORS.connectionLine });
+            }
+
+            for (const child of childCenters) {
+                const isHighlighted =
+                    this.highlightedChildIds.has(child.id) ||
+                    familyNode.parentIds.some(pid => this.highlightedParentIds.has(pid));
+
+                const lineColor = isHighlighted ? COLORS.connectionHighlight : COLORS.connectionLine;
+                const lineWidth = isHighlighted ? 3 : 2;
+
+                graphics.moveTo(child.x, familyY);
+                graphics.lineTo(child.x, child.y);
+                graphics.stroke({ width: lineWidth, color: lineColor });
             }
         }
     }
@@ -124,6 +215,39 @@ export class TreeRenderer {
         graphics.moveTo(x1, y);
         graphics.lineTo(x2, y);
         graphics.stroke({ width: 2, color: COLORS.connectionLine });
+    }
+
+    private drawCoParentConnection(graphics: Graphics, connection: TreeConnection, layout: TreeLayout): void {
+        const from = layout.nodes.get(connection.fromIds[0]);
+        const to = layout.nodes.get(connection.toIds[0]);
+        if (!from || !to) return;
+
+        // Only skip line if they have VISIBLE shared children
+        const sharedChildren = from.childIds.filter(childId => to.childIds.includes(childId));
+        const visibleSharedChildren = sharedChildren.filter(childId => {
+            const childNode = layout.nodes.get(childId);
+            return childNode?.isVisible;
+        });
+        if (visibleSharedChildren.length > 0) {
+            return;
+        }
+
+        const y = from.position.y + from.height / 2;
+        const x1 = from.position.x + from.width;
+        const x2 = to.position.x;
+
+        // Draw dashed line for co-parents (visually distinct from spouse solid line)
+        const dashLength = 6;
+        const gapLength = 4;
+        let currentX = x1;
+
+        while (currentX < x2) {
+            const endX = Math.min(currentX + dashLength, x2);
+            graphics.moveTo(currentX, y);
+            graphics.lineTo(endX, y);
+            graphics.stroke({ width: 2, color: COLORS.connectionLine });
+            currentX = endX + gapLength;
+        }
     }
 
     private drawParentChildConnection(graphics: Graphics, connection: TreeConnection, layout: TreeLayout): void {

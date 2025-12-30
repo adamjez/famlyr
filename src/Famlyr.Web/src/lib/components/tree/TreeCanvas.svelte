@@ -9,9 +9,10 @@
 
     interface Props {
         tree: FamilyTreeModel;
+        initialFocusPersonId?: string | null;
     }
 
-    let { tree }: Props = $props();
+    let { tree, initialFocusPersonId = null }: Props = $props();
 
     let canvasElement: HTMLCanvasElement;
     let containerElement: HTMLDivElement;
@@ -91,10 +92,15 @@
         const width = containerElement.clientWidth;
         const height = containerElement.clientHeight;
 
-        treeViewState.setTree(tree);
         treeViewState.setViewport({ width, height });
 
-        const focusId = treeViewState.focusedPersonId ?? tree.persons[0]?.id;
+        // Use initialFocusPersonId if provided, otherwise default to first person
+        const focusId = initialFocusPersonId ?? tree.persons[0]?.id;
+        if (focusId) {
+            treeViewState.setFocusPerson(focusId);
+        }
+        treeViewState.setTree(tree);
+
         if (focusId) {
             const focusLineageIds = getFocusLineageIds(tree, focusId);
             const initialExpandedSet = new Set(focusLineageIds);

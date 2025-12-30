@@ -154,41 +154,101 @@ Rationale:
 
 ### Layout Algorithm
 
-**Layered Tree Layout (Sugiyama-style)**
+**Layered Tree Layout (Sugiyama-style with enhancements)**
 
-1. **Generation Assignment**: Assign each person to a horizontal layer based on parent-child relationships
-   - Focus person = layer 0
-   - Parents = layer -1, -2, etc. (rendered above)
-   - Children = layer +1, +2, etc. (rendered below)
-   - Spouses share the same layer
+The layout algorithm implements a Sugiyama-style hierarchical layout with additional optimizations based on academic research for hierarchical graph drawing and family tree visualization.
 
-2. **Node Ordering**: Order nodes within each layer to minimize edge crossings
+#### 1. Generation Assignment
+Assign each person to a horizontal layer based on parent-child relationships:
+- Focus person = layer 0
+- Parents = layer -1, -2, etc. (rendered above)
+- Children = layer +1, +2, etc. (rendered below)
+- Spouses share the same layer
 
-3. **Spouse Positioning**: Render spouses horizontally adjacent
-   - Multiple spouses (remarriage) render side-by-side
-   - Children centered below the couple unit
-   - **Connection logic:**
-     - If couple has children: horizontal line connects parents, vertical line drops from midpoint to children (T-shape)
-     - If couple has no children: simple horizontal connector line between spouses
-     - Single parent: vertical line directly from parent to children
+#### 2. Family Clustering
+Group related persons into family clusters for better positioning:
+- Spouse pairs treated as atomic units
+- Children grouped under their parent cluster
+- Recursive cluster width calculation for proper spacing
 
-4. **Coordinate Calculation**: Position nodes with consistent spacing
-   - Horizontal: 200px between siblings
-   - Vertical: 150px between generations
-   - Couple gap: 50px between spouses
+#### 3. Family Nodes (yFiles-style)
+Create invisible "family nodes" between spouse pairs for cleaner edge routing:
+- Family node positioned at center of couple, midway to children vertically
+- Parent-child connections route through family node
+- Creates "T-junction" pattern: parents → horizontal rail → vertical drops to children
+- Eliminates diagonal lines crossing the tree
 
-5. **Sibling Folding**: For scalability with large families
-   - By default, only the focused person's direct lineage is expanded
-   - Siblings of the focused person are shown but their descendants are collapsed
-   - Each sibling node shows a fold indicator: "▶ 12" (collapsed) or "▼" (expanded)
-   - Click the fold indicator to toggle expand/collapse for that sibling's branch
-   - Descendant count includes all generations (children + grandchildren + ...)
-   - Collapsed siblings still show their spouse(s) on the same layer
-   - When a sibling is expanded, their children appear with their own fold indicators
+#### 4. Crossing Minimization (Enhanced)
+Multi-pass algorithm to minimize edge crossings:
+- **Adaptive iterations**: 4-30 iterations based on graph complexity
+- **Alternating heuristics**: Median and barycenter methods alternate each pass
+- **Bidirectional sweeps**: Down sweep (top→bottom) then up sweep (bottom→top)
+- **Local swap optimization**: Adjacent node swaps if crossings reduce
+- **O(E log E) crossing count**: Uses merge-sort inversion counting instead of O(E²) pairwise
 
-6. **Wide Tree Handling**: When siblings exceed viewport width
-   - Collapse distant siblings into "+N siblings" indicator
-   - Expand on click to reveal
+#### 5. Brandes-Köpf Coordinate Assignment
+Horizontal coordinate refinement for straighter edges:
+- Computes 4 alignment variants (leftUp, leftDown, rightUp, rightDown)
+- Groups nodes into "blocks" that share x-coordinates
+- Final coordinates = median of 4 variants
+- Results in vertically aligned parent-child pairs when possible
+
+#### 6. Spouse Adjacency Enforcement
+Post-processing to ensure spouses are always adjacent:
+- Detects separated spouse pairs in each layer
+- Moves separated spouse next to their partner
+- Maintains relative order of other nodes
+- Uses spouse gap (10px) between couples, sibling gap (40px) elsewhere
+
+#### 7. Horizontal Compaction
+Removes excessive horizontal gaps:
+- Scans each layer for gaps > 3× minimum spacing
+- Shifts nodes left to close gaps
+- Keeps layout compact without overlapping
+
+#### 8. Parent-to-Children Nudging (Low Priority)
+Final adjustment to reduce crossings:
+- Only applied when there's available space (no collisions)
+- Nudges parent couples toward their children's center
+- Moves only as far as gap to neighbor allows
+- Does not displace other nodes
+
+#### 9. Connection Rendering
+- **Two parents with children**: Horizontal line between parents at 30% depth, vertical drop to family node, horizontal rail to children, vertical drops to each child
+- **Single parent**: Direct vertical line from parent through family node to children
+- **Couple without children**: Simple horizontal connector line between spouses
+- **Highlighting**: Parent connections green, child connections orange when selected
+
+#### 10. Sibling Folding
+For scalability with large families:
+- By default, only the focused person's direct lineage is expanded
+- Siblings of the focused person are shown but their descendants are collapsed
+- Each sibling node shows a fold indicator: "▶ 12" (collapsed) or "▼" (expanded)
+- Click the fold indicator to toggle expand/collapse for that sibling's branch
+- Descendant count includes all generations (children + grandchildren + ...)
+- Collapsed siblings still show their spouse(s) on the same layer
+- When a sibling is expanded, their children appear with their own fold indicators
+
+#### 11. Wide Tree Handling
+When siblings exceed viewport width:
+- Collapse distant siblings into "+N siblings" indicator
+- Expand on click to reveal
+
+#### Configuration
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| nodeWidth | 160px | Node width at LOD 3 |
+| nodeHeight | 80px | Node height at LOD 3 |
+| siblingGap | 40px | Horizontal gap between siblings |
+| spouseGap | 10px | Horizontal gap between spouses |
+| generationGap | 150px | Vertical gap between generations |
+| branchGap | 60px | Gap between family branches |
+
+#### Sources
+Implementation based on:
+- [Sugiyama Method](https://blog.disy.net/sugiyama-method/) - Barycenter/median heuristics
+- [yFiles Family Tree Layout](https://docs.yworks.com/yfiles-html/dguide/layout/family_tree_layout.html) - Family node concept
+- [Brandes-Köpf Algorithm](https://en.wikipedia.org/wiki/Layered_graph_drawing) - Coordinate assignment
 
 ### Level of Detail Configuration
 

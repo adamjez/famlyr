@@ -8,24 +8,14 @@
 
     interface Props {
         tree: FamilyTreeModel;
-        focusPersonId?: string | null;
+        initialFocusPersonId?: string | null;
     }
 
-    let { tree, focusPersonId = null }: Props = $props();
+    let { tree, initialFocusPersonId = null }: Props = $props();
 
-    let hasInitialFocus = $state(false);
     let canvasRef: TreeCanvas | null = $state(null);
     let searchRef: TreeSearch | null = $state(null);
 
-    $effect(() => {
-        if (focusPersonId && treeViewState.layout && !hasInitialFocus) {
-            hasInitialFocus = true;
-            // Use setTimeout to ensure the layout is fully rendered
-            setTimeout(() => {
-                treeViewState.selectPerson(focusPersonId);
-            }, 100);
-        }
-    });
 
     function handleFocus(personId: string) {
         canvasRef?.setFocusPerson(personId);
@@ -59,7 +49,7 @@
 
 <div class="tree-viewer">
     <div class="tree-viewport">
-        <TreeCanvas bind:this={canvasRef} {tree} />
+        <TreeCanvas bind:this={canvasRef} {tree} {initialFocusPersonId} />
     </div>
 
     <TreeSearch
