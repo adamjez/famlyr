@@ -1871,17 +1871,9 @@ function ensureSpousesAdjacent(
     for (const [, nodesInLayer] of layerNodes) {
         if (nodesInLayer.length <= 1) continue;
 
-        const sorted = [...nodesInLayer].sort((a, b) =>
-            (xPositions.get(a) ?? 0) - (xPositions.get(b) ?? 0)
-        );
-
-        const nodeToIndex = new Map<string, number>();
-        sorted.forEach((id, idx) => nodeToIndex.set(id, idx));
-
         const processed = new Set<string>();
 
-        for (let i = 0; i < sorted.length; i++) {
-            const nodeId = sorted[i];
+        for (const nodeId of nodesInLayer) {
             if (processed.has(nodeId)) continue;
 
             const spouses = (maps.spouseOf.get(nodeId) ?? [])
@@ -1892,46 +1884,39 @@ function ensureSpousesAdjacent(
             for (const spouseId of spouses) {
                 if (processed.has(spouseId)) continue;
 
-                const nodeIdx = nodeToIndex.get(nodeId)!;
-                const spouseIdx = nodeToIndex.get(spouseId)!;
+                const nodeX = xPositions.get(nodeId) ?? 0;
+                const spouseX = xPositions.get(spouseId) ?? 0;
+                const expectedGap = config.nodeWidth + config.spouseGap;
+                const actualGap = Math.abs(spouseX - nodeX);
 
-                if (Math.abs(nodeIdx - spouseIdx) <= 1) {
+                // If spouses are already close enough, skip
+                if (actualGap <= expectedGap + config.siblingGap) {
                     processed.add(nodeId);
                     processed.add(spouseId);
                     continue;
                 }
 
-                const leftIdx = Math.min(nodeIdx, spouseIdx);
-                const rightIdx = Math.max(nodeIdx, spouseIdx);
-                const leftId = sorted[leftIdx];
-                const rightId = sorted[rightIdx];
-
-                sorted.splice(rightIdx, 1);
-                sorted.splice(leftIdx + 1, 0, rightId);
-
-                sorted.forEach((id, idx) => nodeToIndex.set(id, idx));
+                // Move the spouse that's further from the center to be next to the other
+                // This minimizes disruption to the layout
+                if (Math.abs(nodeX) <= Math.abs(spouseX)) {
+                    // Move spouse next to node
+                    if (spouseX > nodeX) {
+                        xPositions.set(spouseId, nodeX + config.nodeWidth + config.spouseGap);
+                    } else {
+                        xPositions.set(spouseId, nodeX - config.nodeWidth - config.spouseGap);
+                    }
+                } else {
+                    // Move node next to spouse
+                    if (nodeX > spouseX) {
+                        xPositions.set(nodeId, spouseX + config.nodeWidth + config.spouseGap);
+                    } else {
+                        xPositions.set(nodeId, spouseX - config.nodeWidth - config.spouseGap);
+                    }
+                }
 
                 processed.add(nodeId);
                 processed.add(spouseId);
             }
-        }
-
-        let currentX = xPositions.get(sorted[0]) ?? 0;
-        xPositions.set(sorted[0], currentX);
-
-        for (let i = 1; i < sorted.length; i++) {
-            const prev = sorted[i - 1];
-            const curr = sorted[i];
-
-            const prevSpouses = (maps.spouseOf.get(prev) ?? [])
-                .filter(sid => visibleNodeIds.has(sid) && nodesInLayer.includes(sid));
-            const isSpousePair = prevSpouses.includes(curr);
-
-            const gap = isSpousePair ? config.spouseGap : config.siblingGap;
-            const prevX = xPositions.get(prev) ?? 0;
-            const newX = prevX + config.nodeWidth + gap;
-
-            xPositions.set(curr, newX);
         }
     }
 }
