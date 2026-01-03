@@ -97,6 +97,11 @@
         showToast('Tree updated successfully');
     }
 
+    async function handlePersonDeleted() {
+        selectedPerson = null;
+        await invalidateAll();
+    }
+
     async function handleDeleteTree() {
         isDeleting = true;
         try {
@@ -264,6 +269,7 @@
         onSelectPerson={selectPerson}
         onEdit={openEditPerson}
         onRelationshipChange={() => invalidateAll()}
+        onDelete={handlePersonDeleted}
     />
 {/if}
 

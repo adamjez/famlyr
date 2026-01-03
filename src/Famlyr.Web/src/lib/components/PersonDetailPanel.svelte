@@ -1,8 +1,9 @@
 <script lang="ts">
     import type { PersonModel, PersonRelationshipsResponse, PersonSearchResultModel, PersonDetailModel, Gender } from '$lib/types/api';
-    import { getRelationships, addRelationship, removeRelationship, getPerson, deletePhoto, setPrimaryPhoto, updatePerson } from '$lib/api/persons';
+    import { getRelationships, addRelationship, removeRelationship, getPerson, deletePhoto, setPrimaryPhoto, updatePerson, deletePerson } from '$lib/api/persons';
     import { showToast } from '$lib/stores/toast.svelte';
     import PersonSearch from './PersonSearch.svelte';
+    import ConfirmDialog from './ConfirmDialog.svelte';
 
     interface Props {
         person: PersonModel;
@@ -11,9 +12,10 @@
         onSelectPerson: (person: PersonModel) => void;
         onEdit?: () => void;
         onRelationshipChange?: () => void;
+        onDelete?: () => void;
     }
 
-    let { person, treeId, onClose, onSelectPerson, onEdit, onRelationshipChange }: Props = $props();
+    let { person, treeId, onClose, onSelectPerson, onEdit, onRelationshipChange, onDelete }: Props = $props();
 
     let relationships = $state<PersonRelationshipsResponse | null>(null);
     let isLoadingRelationships = $state(true);
@@ -26,6 +28,8 @@
     let deletingPhotoId = $state<string | null>(null);
     let settingPrimaryPhotoId = $state<string | null>(null);
     let fileInput: HTMLInputElement | null = $state(null);
+    let showDeleteConfirm = $state(false);
+    let isDeleting = $state(false);
 
     const excludePersonIds = $derived(() => {
         if (!relationships) return [person.id];
@@ -177,6 +181,20 @@
             deathDate: null,
             primaryPhotoUrl: null
         });
+    }
+
+    async function handleDeletePerson() {
+        isDeleting = true;
+        try {
+            await deletePerson(treeId, person.id);
+            showToast('Person deleted successfully');
+            showDeleteConfirm = false;
+            onDelete?.();
+        } catch (e) {
+            showToast(e instanceof Error ? e.message : 'Failed to delete person', 'error');
+        } finally {
+            isDeleting = false;
+        }
     }
 </script>
 
@@ -451,9 +469,26 @@
             <a href="/tree/{treeId}?focus={person.id}" class="btn btn-primary w-full">
                 View in Tree
             </a>
+            {#if onDelete}
+                <button class="btn btn-danger w-full" onclick={() => showDeleteConfirm = true}>
+                    Delete Person
+                </button>
+            {/if}
         </div>
     </div>
 </div>
+
+{#if showDeleteConfirm}
+    <ConfirmDialog
+        title="Delete Person"
+        message="Are you sure you want to delete {formatName(person.firstName, person.lastName)}? All photos and relationships for this person will be permanently removed. This action cannot be undone."
+        confirmText="Delete"
+        confirmVariant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleDeletePerson}
+        onCancel={() => showDeleteConfirm = false}
+    />
+{/if}
 
 <style>
     .panel-backdrop {

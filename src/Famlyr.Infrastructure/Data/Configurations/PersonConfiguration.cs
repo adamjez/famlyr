@@ -41,7 +41,7 @@ public class PersonConfiguration : IEntityTypeConfiguration<Person>
         builder.HasMany(p => p.RelationshipsAsRelative)
             .WithOne(r => r.Relative)
             .HasForeignKey(r => r.RelativeId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(p => p.Photos)
             .WithOne(pp => pp.Person)
