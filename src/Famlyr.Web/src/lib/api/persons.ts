@@ -11,6 +11,7 @@ import type {
 export interface CreatePersonData {
     firstName?: string;
     lastName?: string;
+    birthName?: string;
     gender?: string;
     birthDate?: string;
     deathDate?: string;
@@ -21,6 +22,7 @@ export interface CreatePersonData {
 export interface UpdatePersonData {
     firstName?: string | null;
     lastName?: string | null;
+    birthName?: string | null;
     gender?: string;
     birthDate?: string | null;
     deathDate?: string | null;
@@ -36,6 +38,9 @@ function buildFormData(data: CreatePersonData | UpdatePersonData): FormData {
     }
     if (data.lastName !== undefined) {
         formData.append('lastName', data.lastName ?? '');
+    }
+    if (data.birthName !== undefined) {
+        formData.append('birthName', data.birthName ?? '');
     }
     if (data.gender !== undefined) {
         formData.append('gender', data.gender);
