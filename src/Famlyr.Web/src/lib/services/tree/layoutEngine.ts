@@ -52,13 +52,28 @@ function buildRelationshipMaps(relationships: RelationshipModel[]): Relationship
 }
 
 function assignLayers(
-    focusPersonId: string,
+    focusPersonId: string | null,
     persons: PersonModel[],
     maps: RelationshipMaps
 ): Map<string, number> {
     const layers = new Map<string, number>();
     const visited = new Set<string>();
-    const queue: { id: string; layer: number }[] = [{ id: focusPersonId, layer: 0 }];
+
+    // When no focus, start from root persons (those without parents)
+    let startPersonId = focusPersonId;
+    if (!startPersonId && persons.length > 0) {
+        const rootPerson = persons.find(p => {
+            const parents = maps.childOf.get(p.id) ?? [];
+            return parents.length === 0;
+        });
+        startPersonId = rootPerson?.id ?? persons[0].id;
+    }
+
+    if (!startPersonId) {
+        return layers;
+    }
+
+    const queue: { id: string; layer: number }[] = [{ id: startPersonId, layer: 0 }];
 
     while (queue.length > 0) {
         const { id, layer } = queue.shift()!;
@@ -141,7 +156,7 @@ function buildClusterTree(
     layerMap: Map<string, number>,
     maps: RelationshipMaps,
     visibleNodeIds: Set<string>,
-    focusPersonId: string
+    focusPersonId: string | null
 ): ClusterTree {
     const allClusters = new Map<string, FamilyCluster>();
     const clusterByChildId = new Map<string, FamilyCluster>();
@@ -240,7 +255,7 @@ function buildClusterTree(
         }
     }
 
-    if (roots.length === 0 && visibleNodeIds.has(focusPersonId)) {
+    if (roots.length === 0 && focusPersonId && visibleNodeIds.has(focusPersonId)) {
         const focusCluster: FamilyCluster = {
             id: `cluster-focus-${focusPersonId}`,
             parentIds: [focusPersonId],
@@ -398,7 +413,7 @@ function assignClusterPositions(
     clusterTree: ClusterTree,
     maps: RelationshipMaps,
     visibleNodeIds: Set<string>,
-    focusPersonId: string,
+    focusPersonId: string | null,
     config: LayoutConfig
 ): Map<string, number> {
     const xPositions = new Map<string, number>();
@@ -500,9 +515,9 @@ function assignClusterPositions(
     const otherRoots: FamilyCluster[] = [];
 
     for (const root of clusterTree.roots) {
-        if (root.parentIds.includes(focusPersonId)) {
+        if (focusPersonId && root.parentIds.includes(focusPersonId)) {
             focusRootCluster = root;
-        } else {
+        } else if (focusPersonId) {
             const containsFocus = (cluster: FamilyCluster): boolean => {
                 if (cluster.childIds.includes(focusPersonId)) return true;
                 return cluster.childClusters.some(containsFocus);
@@ -512,6 +527,8 @@ function assignClusterPositions(
             } else {
                 otherRoots.push(root);
             }
+        } else {
+            otherRoots.push(root);
         }
     }
 
@@ -1928,7 +1945,7 @@ function calculatePositions(
     persons: PersonModel[],
     layerMap: Map<string, number>,
     maps: RelationshipMaps,
-    focusPersonId: string,
+    focusPersonId: string | null,
     visibleNodeIds: Set<string>,
     config: LayoutConfig
 ): CalculatePositionsResult {
@@ -2104,9 +2121,13 @@ function calculateDescendantCounts(
 }
 
 function markFocusLineage(
-    focusPersonId: string,
+    focusPersonId: string | null,
     maps: RelationshipMaps
 ): Set<string> {
+    if (!focusPersonId) {
+        return new Set<string>();
+    }
+
     const lineage = new Set<string>();
     const visited = new Set<string>();
 
@@ -2146,10 +2167,15 @@ function markFocusLineage(
 
 function determineVisibleNodes(
     persons: PersonModel[],
-    focusPersonId: string,
+    focusPersonId: string | null,
     expandedNodeIds: Set<string>,
     maps: RelationshipMaps
 ): Set<string> {
+    // If no focus, show everyone
+    if (!focusPersonId) {
+        return new Set(persons.map(p => p.id));
+    }
+
     const visible = new Set<string>();
     const ancestorsProcessed = new Set<string>();
 
@@ -2226,7 +2252,7 @@ export interface LayoutOptions {
 
 export function calculateLayout(
     tree: FamilyTreeModel,
-    focusPersonId: string,
+    focusPersonId: string | null,
     options: LayoutOptions = {}
 ): TreeLayout {
     const lod = options.lod ?? 3;

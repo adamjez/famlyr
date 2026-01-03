@@ -30,7 +30,7 @@
         const expandedIds = newExpandedNodeIds ?? treeViewState.expandedNodeIds;
         const newLOD = getLODLevel(treeViewState.viewport.zoom);
 
-        if (!currentTree || !focusId || !renderer) {
+        if (!currentTree || !renderer) {
             return;
         }
 
@@ -94,25 +94,25 @@
 
         treeViewState.setViewport({ width, height });
 
-        // Use initialFocusPersonId if provided, otherwise default to first person
-        const focusId = initialFocusPersonId ?? tree.persons[0]?.id;
-        if (focusId) {
-            treeViewState.setFocusPerson(focusId);
+        // Only set focus if explicitly provided via URL parameter
+        if (initialFocusPersonId) {
+            treeViewState.setFocusPerson(initialFocusPersonId);
         }
         treeViewState.setTree(tree);
 
-        if (focusId) {
-            const focusLineageIds = getFocusLineageIds(tree, focusId);
-            const initialExpandedSet = new Set(focusLineageIds);
-            treeViewState.resetFoldState(focusLineageIds);
-            currentLOD = getLODLevel(treeViewState.viewport.zoom);
+        // Calculate initial layout (focusId may be null to show all persons)
+        const focusLineageIds = initialFocusPersonId
+            ? getFocusLineageIds(tree, initialFocusPersonId)
+            : [];
+        const initialExpandedSet = new Set(focusLineageIds);
+        treeViewState.resetFoldState(focusLineageIds);
+        currentLOD = getLODLevel(treeViewState.viewport.zoom);
 
-            const layout = calculateLayout(tree, focusId, {
-                expandedNodeIds: initialExpandedSet,
-                lod: currentLOD
-            });
-            treeViewState.setLayout(layout);
-        }
+        const layout = calculateLayout(tree, initialFocusPersonId ?? null, {
+            expandedNodeIds: initialExpandedSet,
+            lod: currentLOD
+        });
+        treeViewState.setLayout(layout);
 
         renderer = new TreeRenderer({
             onNodeClick: (nodeId) => {

@@ -47,7 +47,6 @@
     });
 
     async function loadRelationships() {
-        isLoadingRelationships = true;
         try {
             relationships = await getRelationships(treeId, person.id);
         } catch {
@@ -325,7 +324,7 @@
                         <dt>Parents</dt>
                         <dd>
                             <ul class="relation-list">
-                                {#each relationships.parents as rel}
+                                {#each relationships.parents as rel (rel.relationshipId)}
                                     <li class="relation-item">
                                         <button
                                             class="relation-link relation-parent"
@@ -356,7 +355,7 @@
                         <dt>{relationships.spouses.length === 1 ? 'Spouse' : 'Spouses'}</dt>
                         <dd>
                             <ul class="relation-list">
-                                {#each relationships.spouses as rel}
+                                {#each relationships.spouses as rel (rel.relationshipId)}
                                     <li class="relation-item">
                                         <button
                                             class="relation-link relation-spouse"
@@ -387,7 +386,7 @@
                         <dt>Children</dt>
                         <dd>
                             <ul class="relation-list">
-                                {#each relationships.children as rel}
+                                {#each relationships.children as rel (rel.relationshipId)}
                                     <li class="relation-item">
                                         <button
                                             class="relation-link relation-child"

@@ -202,9 +202,6 @@ function createTreeViewState() {
 
         setTree(newTree: FamilyTreeModel) {
             tree = newTree;
-            if (!focusedPersonId && newTree.persons.length > 0) {
-                focusedPersonId = newTree.persons[0].id;
-            }
         },
 
         setLayout(newLayout: TreeLayout) {
