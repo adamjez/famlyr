@@ -1,3 +1,4 @@
+using Famlyr.Api.Extensions;
 using Famlyr.Api.Helpers;
 using Famlyr.Api.Models;
 using Famlyr.Api.Services;
@@ -96,7 +97,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         context.Persons.Add(person);
         await context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetPerson), new { treeId, personId = person.Id }, MapToDetailModel(person));
+        var baseUrl = Request.GetBaseUrl();
+        return CreatedAtAction(nameof(GetPerson), new { treeId, personId = person.Id }, MapToDetailModel(person, treeId, baseUrl));
     }
 
     [HttpPut("{personId:guid}")]
@@ -206,7 +208,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         }
 
         await context.SaveChangesAsync();
-        return Ok(MapToDetailModel(person));
+        var baseUrl = Request.GetBaseUrl();
+        return Ok(MapToDetailModel(person, treeId, baseUrl));
     }
 
     [HttpDelete("{personId:guid}")]
@@ -240,7 +243,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         if (person is null)
             return NotFound(new ErrorResponse { Code = "PERSON_NOT_FOUND", Message = "Person not found" });
 
-        return Ok(MapToDetailModel(person));
+        var baseUrl = Request.GetBaseUrl();
+        return Ok(MapToDetailModel(person, treeId, baseUrl));
     }
 
     [HttpDelete("{personId:guid}/photos/{photoId:guid}")]
@@ -275,6 +279,22 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         return NoContent();
     }
 
+    [HttpGet("{personId:guid}/photos/{photoId:guid}/image.png")]
+    public async Task<IActionResult> GetPhotoImage(Guid treeId, Guid personId, Guid photoId)
+    {
+        var imageData = await context.PersonPhotos
+            .Where(p => p.Id == photoId && p.PersonId == personId && p.Person!.FamilyTreeId == treeId)
+            .Select(p => p.ImageData)
+            .FirstOrDefaultAsync();
+
+        if (imageData is null)
+            return NotFound();
+
+        var mimeType = ImageHelper.DetectMimeType(imageData);
+        Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        return File(imageData, mimeType);
+    }
+
     [HttpPut("{personId:guid}/photos/{photoId:guid}/primary")]
     public async Task<ActionResult<PersonPhotoModel>> SetPrimaryPhoto(Guid treeId, Guid personId, Guid photoId)
     {
@@ -300,7 +320,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         photo.IsPrimary = true;
         await context.SaveChangesAsync();
 
-        return Ok(MapToPhotoModel(photo));
+        var baseUrl = Request.GetBaseUrl();
+        return Ok(MapToPhotoModel(photo, treeId, personId, baseUrl));
     }
 
     [HttpPut("{personId:guid}/photos/reorder")]
@@ -334,7 +355,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
 
         await context.SaveChangesAsync();
 
-        var photos = person.Photos.OrderBy(p => p.Order).Select(MapToPhotoModel).ToList();
+        var baseUrl = Request.GetBaseUrl();
+        var photos = person.Photos.OrderBy(p => p.Order).Select(p => MapToPhotoModel(p, treeId, personId, baseUrl)).ToList();
         return Ok(new PhotoReorderResponse { Photos = photos });
     }
 
@@ -572,7 +594,7 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         });
     }
 
-    private static PersonDetailModel MapToDetailModel(Person person)
+    private static PersonDetailModel MapToDetailModel(Person person, Guid treeId, string baseUrl)
     {
         return new PersonDetailModel
         {
@@ -584,11 +606,11 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
             BirthDate = DateHelper.FormatDate(person.BirthYear, person.BirthMonth, person.BirthDay),
             DeathDate = DateHelper.FormatDate(person.DeathYear, person.DeathMonth, person.DeathDay),
             Notes = person.Notes,
-            Photos = person.Photos.OrderBy(p => p.Order).Select(MapToPhotoModel).ToList()
+            Photos = person.Photos.OrderBy(p => p.Order).Select(ph => MapToPhotoModel(ph, treeId, person.Id, baseUrl)).ToList()
         };
     }
 
-    private static PersonPhotoModel MapToPhotoModel(PersonPhoto photo)
+    private static PersonPhotoModel MapToPhotoModel(PersonPhoto photo, Guid treeId, Guid personId, string baseUrl)
     {
         return new PersonPhotoModel
         {
@@ -596,7 +618,7 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
             IsPrimary = photo.IsPrimary,
             CreatedAt = photo.CreatedAt,
             Order = photo.Order,
-            ImageUrl = ImageHelper.ToDataUrl(photo.ImageData)
+            ImageUrl = ImageHelper.BuildPhotoUrl(baseUrl, treeId, personId, photo.Id)
         };
     }
 }

@@ -78,7 +78,7 @@ Famlyr.Api
 └── Famlyr.ServiceDefaults
 
 Famlyr.Web (SvelteKit)
-└── Calls Famlyr.Api via PUBLIC_API_URL
+└── Calls Famlyr.Api via PUBLIC_API_URL_HTTPS
 ```
 
 ## Frontend (Famlyr.Web)

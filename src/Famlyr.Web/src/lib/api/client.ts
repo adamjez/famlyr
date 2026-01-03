@@ -1,6 +1,6 @@
-import { PUBLIC_API_URL } from "$env/static/public";
+import { PUBLIC_API_URL_HTTPS } from "$env/static/public";
 
-const API_BASE = PUBLIC_API_URL || "http://localhost:5240";
+const API_BASE = PUBLIC_API_URL_HTTPS || "http://localhost:5240";
 
 export class ApiError extends Error {
     constructor(

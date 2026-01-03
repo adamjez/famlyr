@@ -1,3 +1,4 @@
+using Famlyr.Api.Extensions;
 using Famlyr.Api.Helpers;
 using Famlyr.Api.Models;
 using Famlyr.Core.Entities;
@@ -53,7 +54,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                     p.DeathYear,
                     p.DeathMonth,
                     p.DeathDay,
-                    PrimaryPhoto = p.Photos.Where(ph => ph.IsPrimary).Select(ph => ph.ImageData).FirstOrDefault()
+                    PrimaryPhotoId = p.Photos.Where(ph => ph.IsPrimary).Select(ph => (Guid?)ph.Id).FirstOrDefault()
                 }).ToList(),
                 Relationships = ft.Persons
                     .SelectMany(p => p.RelationshipsAsSubject)
@@ -72,6 +73,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             return NotFound();
         }
 
+        var baseUrl = Request.GetBaseUrl();
         return Ok(new FamilyTreeModel
         {
             Id = result.Id,
@@ -88,7 +90,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                 Gender = p.Gender,
                 BirthDate = DateHelper.FormatDate(p.BirthYear, p.BirthMonth, p.BirthDay),
                 DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay),
-                PrimaryPhotoUrl = p.PrimaryPhoto != null ? ImageHelper.ToDataUrl(p.PrimaryPhoto) : null
+                PrimaryPhotoUrl = p.PrimaryPhotoId.HasValue ? ImageHelper.BuildPhotoUrl(baseUrl, result.Id, p.Id, p.PrimaryPhotoId.Value) : null
             }).ToList(),
             Relationships = result.Relationships
         });
@@ -122,7 +124,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                         p.DeathYear,
                         p.DeathMonth,
                         p.DeathDay,
-                        PrimaryPhoto = p.Photos.Where(ph => ph.IsPrimary).Select(ph => ph.ImageData).FirstOrDefault()
+                        PrimaryPhotoId = p.Photos.Where(ph => ph.IsPrimary).Select(ph => (Guid?)ph.Id).FirstOrDefault()
                     }).ToList(),
                 Relationships = ft.Persons
                     .SelectMany(p => p.RelationshipsAsSubject)
@@ -141,6 +143,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             return NotFound();
         }
 
+        var baseUrl = Request.GetBaseUrl();
         var persons = result.Persons.Select(p => new PersonModel
         {
             Id = p.Id,
@@ -149,7 +152,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             Gender = p.Gender,
             BirthDate = DateHelper.FormatDate(p.BirthYear, p.BirthMonth, p.BirthDay),
             DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay),
-            PrimaryPhotoUrl = p.PrimaryPhoto != null ? ImageHelper.ToDataUrl(p.PrimaryPhoto) : null
+            PrimaryPhotoUrl = p.PrimaryPhotoId.HasValue ? ImageHelper.BuildPhotoUrl(baseUrl, result.Id, p.Id, p.PrimaryPhotoId.Value) : null
         }).ToList();
 
         var allYears = result.Persons

@@ -19,10 +19,9 @@ public static class ImageHelper
         return "application/octet-stream";
     }
 
-    public static string ToDataUrl(byte[] imageData)
+    public static string BuildPhotoUrl(string baseUrl, Guid treeId, Guid personId, Guid photoId)
     {
-        var mimeType = DetectMimeType(imageData);
-        var base64 = Convert.ToBase64String(imageData);
-        return $"data:{mimeType};base64,{base64}";
+        // Extension hint for PixiJS Assets.load() - actual format is determined by Content-Type header
+        return $"{baseUrl}/api/trees/{treeId}/persons/{personId}/photos/{photoId}/image.png";
     }
 }
