@@ -771,7 +771,7 @@
     .header-photo {
         width: 48px;
         height: 48px;
-        border-radius: 50%;
+        border-radius: 4px;
         object-fit: cover;
         flex-shrink: 0;
     }
@@ -779,7 +779,7 @@
     .header-avatar {
         width: 48px;
         height: 48px;
-        border-radius: 50%;
+        border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;

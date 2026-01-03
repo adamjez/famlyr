@@ -408,7 +408,7 @@ export class TreeRenderer {
         // Photo or avatar
         const photoSize = 40;
         const photoX = 8;
-        const photoY = (node.height - photoSize) / 2;
+        const photoY = 8;
 
         if (lodConfig.showPhoto) {
             const photoContainer = new Container();
@@ -493,13 +493,13 @@ export class TreeRenderer {
     }
 
     private renderPhotoSprite(container: Container, texture: Texture, x: number, y: number, size: number): void {
-        // Create circular mask
+        // Create rounded rectangle mask
         const mask = new Graphics();
-        mask.circle(x + size / 2, y + size / 2, size / 2);
+        mask.roundRect(x, y, size, size, 4);
         mask.fill(0xffffff);
         container.addChild(mask);
 
-        // Create sprite with "cover" behavior (fill circle, maintain aspect ratio)
+        // Create sprite with "cover" behavior (fill rectangle, maintain aspect ratio)
         const sprite = new Sprite(texture);
         const textureWidth = texture.width;
         const textureHeight = texture.height;
@@ -530,10 +530,10 @@ export class TreeRenderer {
     }
 
     private renderPlaceholderAvatar(container: Container, person: PersonModel, x: number, y: number, size: number): void {
-        // Background circle
+        // Background rounded rectangle
         const avatarBg = new Graphics();
         const color = getNodeColor(person.gender);
-        avatarBg.circle(x + size / 2, y + size / 2, size / 2);
+        avatarBg.roundRect(x, y, size, size, 4);
         avatarBg.fill(color);
         avatarBg.stroke({ width: 2, color: 0xffffff });
         container.addChild(avatarBg);
