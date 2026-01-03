@@ -4,6 +4,7 @@ public class CreatePersonRequest
 {
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    public string? BirthName { get; init; }
     public string? Gender { get; init; }
     public string? BirthDate { get; init; }
     public string? DeathDate { get; init; }
@@ -15,6 +16,7 @@ public class UpdatePersonRequest
 {
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    public string? BirthName { get; init; }
     public string? Gender { get; init; }
     public string? BirthDate { get; init; }
     public string? DeathDate { get; init; }

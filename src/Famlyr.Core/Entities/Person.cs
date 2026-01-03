@@ -7,6 +7,7 @@ public class Person
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
+    public string? BirthName { get; set; }
     public Gender Gender { get; set; } = Gender.Unknown;
     public int? BirthYear { get; set; }
     public int? BirthMonth { get; set; }

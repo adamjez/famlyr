@@ -16,6 +16,9 @@ public class PersonConfiguration : IEntityTypeConfiguration<Person>
         builder.Property(p => p.LastName)
             .HasMaxLength(100);
 
+        builder.Property(p => p.BirthName)
+            .HasMaxLength(100);
+
         builder.Property(p => p.Gender)
             .IsRequired()
             .HasConversion<string>()

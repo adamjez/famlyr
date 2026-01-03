@@ -229,6 +229,13 @@
                 </div>
             {/if}
 
+            {#if personDetail?.birthName}
+                <div class="info-item">
+                    <dt>Birth Name</dt>
+                    <dd>{personDetail.birthName}</dd>
+                </div>
+            {/if}
+
             <!-- Photo Gallery -->
             <div class="info-item">
                 <dt>Photos</dt>

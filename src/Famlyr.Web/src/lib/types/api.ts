@@ -23,6 +23,7 @@ export interface PersonDetailModel {
     id: string;
     firstName: string | null;
     lastName: string | null;
+    birthName: string | null;
     gender: string;
     birthDate: string | null;
     deathDate: string | null;

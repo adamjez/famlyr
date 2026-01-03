@@ -15,6 +15,7 @@
 
     let firstName = $state(person?.firstName ?? '');
     let lastName = $state(person?.lastName ?? '');
+    let birthName = $state(person?.birthName ?? '');
     let gender = $state(person?.gender ?? 'Unknown');
     let birthDate = $state(person?.birthDate ?? '');
     let deathDate = $state(person?.deathDate ?? '');
@@ -81,6 +82,7 @@
             const data = {
                 firstName: firstName || undefined,
                 lastName: lastName || undefined,
+                birthName: birthName || undefined,
                 gender: gender,
                 birthDate: birthDate || undefined,
                 deathDate: deathDate || undefined,
@@ -142,6 +144,17 @@
                 bind:value={lastName}
                 maxlength={100}
                 placeholder="Enter last name"
+            />
+        </div>
+
+        <div class="form-group">
+            <label for="birthName">Birth Name</label>
+            <input
+                type="text"
+                id="birthName"
+                bind:value={birthName}
+                maxlength={100}
+                placeholder="Enter birth name (maiden name, etc.)"
             />
         </div>
 

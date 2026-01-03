@@ -27,6 +27,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
             return BadRequest(new ErrorResponse { Code = "FIRST_NAME_TOO_LONG", Message = "firstName exceeds 100 characters" });
         if (request.LastName?.Length > 100)
             return BadRequest(new ErrorResponse { Code = "LAST_NAME_TOO_LONG", Message = "lastName exceeds 100 characters" });
+        if (request.BirthName?.Length > 100)
+            return BadRequest(new ErrorResponse { Code = "BIRTH_NAME_TOO_LONG", Message = "birthName exceeds 100 characters" });
         if (request.Notes?.Length > 10000)
             return BadRequest(new ErrorResponse { Code = "NOTES_TOO_LONG", Message = "notes exceeds 10,000 characters" });
 
@@ -68,6 +70,7 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         {
             FirstName = request.FirstName,
             LastName = request.LastName,
+            BirthName = request.BirthName,
             Gender = gender,
             BirthYear = birthYear,
             BirthMonth = birthMonth,
@@ -118,6 +121,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
             return BadRequest(new ErrorResponse { Code = "FIRST_NAME_TOO_LONG", Message = "firstName exceeds 100 characters" });
         if (request.LastName?.Length > 100)
             return BadRequest(new ErrorResponse { Code = "LAST_NAME_TOO_LONG", Message = "lastName exceeds 100 characters" });
+        if (request.BirthName?.Length > 100)
+            return BadRequest(new ErrorResponse { Code = "BIRTH_NAME_TOO_LONG", Message = "birthName exceeds 100 characters" });
         if (request.Notes?.Length > 10000)
             return BadRequest(new ErrorResponse { Code = "NOTES_TOO_LONG", Message = "notes exceeds 10,000 characters" });
 
@@ -126,6 +131,8 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
             person.FirstName = string.IsNullOrEmpty(request.FirstName) ? null : request.FirstName;
         if (request.LastName != null)
             person.LastName = string.IsNullOrEmpty(request.LastName) ? null : request.LastName;
+        if (request.BirthName != null)
+            person.BirthName = string.IsNullOrEmpty(request.BirthName) ? null : request.BirthName;
         if (request.Notes != null)
             person.Notes = string.IsNullOrEmpty(request.Notes) ? null : request.Notes;
 
@@ -572,6 +579,7 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
             Id = person.Id,
             FirstName = person.FirstName,
             LastName = person.LastName,
+            BirthName = person.BirthName,
             Gender = person.Gender.ToString(),
             BirthDate = DateHelper.FormatDate(person.BirthYear, person.BirthMonth, person.BirthDay),
             DeathDate = DateHelper.FormatDate(person.DeathYear, person.DeathMonth, person.DeathDay),
