@@ -43,6 +43,7 @@ export class TreeRenderer {
     private highlightedParentIds: Set<string> = new Set();
     private highlightedChildIds: Set<string> = new Set();
     private photoTextures: Map<string, Texture> = new Map();
+    private photoContainers: Map<string, Container> = new Map();
     private currentLOD: LODLevel = 3;
 
     constructor(options: TreeRendererOptions = {}) {
@@ -76,6 +77,7 @@ export class TreeRenderer {
         this.layout = layout;
         this.treeContainer.removeChildren();
         this.nodeSprites.clear();
+        this.photoContainers.clear();
 
         this.renderConnections(layout);
 
@@ -408,10 +410,17 @@ export class TreeRenderer {
         const photoX = 8;
         const photoY = (node.height - photoSize) / 2;
 
-        if (lodConfig.showPhoto && node.person.primaryPhotoUrl) {
-            this.renderPhoto(container, node.person, photoX, photoY, photoSize);
-        } else if (lodConfig.showPhoto) {
-            this.renderPlaceholderAvatar(container, node.person, photoX, photoY, photoSize);
+        if (lodConfig.showPhoto) {
+            const photoContainer = new Container();
+            photoContainer.position.set(photoX, photoY);
+            container.addChild(photoContainer);
+            this.photoContainers.set(node.person.id, photoContainer);
+
+            if (node.person.primaryPhotoUrl) {
+                this.renderPhoto(photoContainer, node.person, 0, 0, photoSize);
+            } else {
+                this.renderPlaceholderAvatar(photoContainer, node.person, 0, 0, photoSize);
+            }
         }
 
         // Text positioning (shifted right if photo shown)
@@ -472,9 +481,11 @@ export class TreeRenderer {
         const personId = person.id;
         Assets.load(photoUrl).then((texture: Texture) => {
             this.photoTextures.set(personId, texture);
-            // Re-render if layout still exists (triggers full re-render to show photo)
-            if (this.layout) {
-                this.render(this.layout);
+            // Targeted update: only update this node's photo container
+            const photoContainer = this.photoContainers.get(personId);
+            if (photoContainer && this.currentLOD === 3) {
+                photoContainer.removeChildren();
+                this.renderPhotoSprite(photoContainer, texture, 0, 0, size);
             }
         }).catch(() => {
             // Failed to load, placeholder remains

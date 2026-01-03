@@ -141,10 +141,20 @@
             }
         });
         resizeObserver.observe(containerElement);
+
+        // Register touch events with passive: false to allow preventDefault()
+        containerElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+        containerElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+        containerElement.addEventListener('touchend', handleTouchEnd);
+        containerElement.addEventListener('touchcancel', handleTouchEnd);
     });
 
     onDestroy(() => {
         resizeObserver?.disconnect();
+        containerElement?.removeEventListener('touchstart', handleTouchStart);
+        containerElement?.removeEventListener('touchmove', handleTouchMove);
+        containerElement?.removeEventListener('touchend', handleTouchEnd);
+        containerElement?.removeEventListener('touchcancel', handleTouchEnd);
         renderer?.destroy();
         renderer = null;
     });
@@ -276,10 +286,6 @@
     onpointerup={handlePointerUp}
     onpointercancel={handlePointerUp}
     onclick={handleCanvasClick}
-    ontouchstart={handleTouchStart}
-    ontouchmove={handleTouchMove}
-    ontouchend={handleTouchEnd}
-    ontouchcancel={handleTouchEnd}
     onkeydown={handleKeyDown}
     tabindex="0"
     role="application"
