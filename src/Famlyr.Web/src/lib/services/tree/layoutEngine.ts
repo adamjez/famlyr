@@ -75,42 +75,67 @@ function assignLayers(
 
     const queue: { id: string; layer: number }[] = [{ id: startPersonId, layer: 0 }];
 
-    while (queue.length > 0) {
-        const { id, layer } = queue.shift()!;
+    while (true) {
+        while (queue.length > 0) {
+            const { id, layer } = queue.shift()!;
 
-        if (visited.has(id)) continue;
-        visited.add(id);
-        layers.set(id, layer);
+            if (visited.has(id)) continue;
+            visited.add(id);
+            layers.set(id, layer);
 
-        const parents = maps.childOf.get(id) ?? [];
-        for (const parentId of parents) {
-            if (!visited.has(parentId)) {
-                queue.push({ id: parentId, layer: layer - 1 });
+            const parents = maps.childOf.get(id) ?? [];
+            for (const parentId of parents) {
+                if (!visited.has(parentId)) {
+                    queue.push({ id: parentId, layer: layer - 1 });
+                }
             }
-        }
 
-        const children = maps.parentOf.get(id) ?? [];
-        for (const childId of children) {
-            if (!visited.has(childId)) {
-                queue.push({ id: childId, layer: layer + 1 });
+            const children = maps.parentOf.get(id) ?? [];
+            for (const childId of children) {
+                if (!visited.has(childId)) {
+                    queue.push({ id: childId, layer: layer + 1 });
+                }
             }
-        }
 
-        const spouses = maps.spouseOf.get(id) ?? [];
-        for (const spouseId of spouses) {
-            if (!visited.has(spouseId)) {
-                queue.push({ id: spouseId, layer: layer });
+            const spouses = maps.spouseOf.get(id) ?? [];
+            for (const spouseId of spouses) {
+                if (!visited.has(spouseId)) {
+                    queue.push({ id: spouseId, layer: layer });
+                }
             }
-        }
 
-        for (const childId of children) {
-            const childParents = maps.childOf.get(childId) ?? [];
-            for (const coParentId of childParents) {
-                if (!visited.has(coParentId)) {
-                    queue.push({ id: coParentId, layer: layer });
+            for (const childId of children) {
+                const childParents = maps.childOf.get(childId) ?? [];
+                for (const coParentId of childParents) {
+                    if (!visited.has(coParentId)) {
+                        queue.push({ id: coParentId, layer: layer });
+                    }
                 }
             }
         }
+
+        // Find next disconnected component root
+        let found = false;
+        for (const person of persons) {
+            if (!visited.has(person.id)) {
+                const parents = maps.childOf.get(person.id) ?? [];
+                if (parents.length === 0) {
+                    queue.push({ id: person.id, layer: 0 });
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found) {
+            for (const person of persons) {
+                if (!visited.has(person.id)) {
+                    queue.push({ id: person.id, layer: 0 });
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found) break;
     }
 
     for (const person of persons) {
@@ -703,7 +728,7 @@ function centerChildrenUnderParents(
             const parents = (maps.childOf.get(childId) ?? []).filter(p => visibleNodeIds.has(p));
             if (parents.length === 0) continue;
 
-            const parentKey = parents.sort().join('-');
+            const parentKey = parents.sort().join('|');
             if (!childrenByParents.has(parentKey)) {
                 childrenByParents.set(parentKey, []);
             }
@@ -711,7 +736,7 @@ function centerChildrenUnderParents(
         }
 
         for (const [parentKey, children] of childrenByParents) {
-            const parentIds = parentKey.split('-');
+            const parentIds = parentKey.split('|');
             const parentXs = parentIds
                 .map(p => xPositions.get(p))
                 .filter((x): x is number => x !== undefined);
@@ -1860,6 +1885,103 @@ function nudgeParentsTowardsChildren(
     }
 }
 
+function nudgeChildrenTowardsParents(
+    xPositions: Map<string, number>,
+    layerMap: Map<string, number>,
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>,
+    config: LayoutConfig
+): void {
+    const layerNodes = buildLayerNodeMap(layerMap, visibleNodeIds, xPositions);
+    const sortedLayers = Array.from(layerNodes.keys()).sort((a, b) => a - b);
+
+    for (const layer of sortedLayers) {
+        if (layer <= 0) continue;
+
+        const nodesInLayer = layerNodes.get(layer) ?? [];
+        if (nodesInLayer.length === 0) continue;
+
+        const childrenByParents = new Map<string, string[]>();
+        for (const childId of nodesInLayer) {
+            const parents = (maps.childOf.get(childId) ?? []).filter(p => visibleNodeIds.has(p));
+            if (parents.length === 0) continue;
+            const parentKey = parents.sort().join('|');
+            if (!childrenByParents.has(parentKey)) childrenByParents.set(parentKey, []);
+            childrenByParents.get(parentKey)!.push(childId);
+        }
+
+        const sorted = [...nodesInLayer].sort((a, b) =>
+            (xPositions.get(a) ?? 0) - (xPositions.get(b) ?? 0)
+        );
+
+        for (const [parentKey, children] of childrenByParents) {
+            const parentIds = parentKey.split('|');
+            const parentXs = parentIds
+                .map(p => xPositions.get(p))
+                .filter((x): x is number => x !== undefined);
+            if (parentXs.length === 0) continue;
+
+            const parentCenter = (Math.min(...parentXs) + Math.max(...parentXs) + config.nodeWidth) / 2;
+
+            const childXs = children.map(c => xPositions.get(c)!);
+            const childMin = Math.min(...childXs);
+            const childMax = Math.max(...childXs) + config.nodeWidth;
+            const childCenter = (childMin + childMax) / 2;
+
+            const desiredShift = parentCenter - childCenter;
+
+            if (Math.abs(desiredShift) < config.nodeWidth / 2) continue;
+
+            const childIndices = children.map(c => sorted.indexOf(c)).filter(i => i >= 0);
+            if (childIndices.length === 0) continue;
+            const minIdx = Math.min(...childIndices);
+            const maxIdx = Math.max(...childIndices);
+
+            let availableSpace: number;
+            if (desiredShift > 0) {
+                if (maxIdx < sorted.length - 1) {
+                    const rightNeighbor = sorted[maxIdx + 1];
+                    const rightX = xPositions.get(rightNeighbor) ?? 0;
+                    availableSpace = Math.max(0, rightX - childMax - config.siblingGap);
+                } else {
+                    availableSpace = Math.abs(desiredShift);
+                }
+            } else {
+                if (minIdx > 0) {
+                    const leftNeighbor = sorted[minIdx - 1];
+                    const leftX = xPositions.get(leftNeighbor) ?? 0;
+                    availableSpace = Math.max(0, childMin - leftX - config.nodeWidth - config.siblingGap);
+                } else {
+                    availableSpace = Math.abs(desiredShift);
+                }
+            }
+
+            if (availableSpace < config.nodeWidth / 4) continue;
+
+            const actualShift = desiredShift > 0
+                ? Math.min(desiredShift, availableSpace)
+                : Math.max(desiredShift, -availableSpace);
+
+            if (Math.abs(actualShift) < 1) continue;
+
+            // Move the children and all their descendants to keep subtrees intact
+            const subtree = new Set<string>();
+            const queue = [...children];
+            while (queue.length > 0) {
+                const nodeId = queue.pop()!;
+                if (subtree.has(nodeId)) continue;
+                subtree.add(nodeId);
+                const desc = (maps.parentOf.get(nodeId) ?? []).filter(c => visibleNodeIds.has(c));
+                queue.push(...desc);
+            }
+
+            for (const nodeId of subtree) {
+                xPositions.set(nodeId, (xPositions.get(nodeId) ?? 0) + actualShift);
+            }
+        }
+    }
+}
+
 function ensureSpousesAdjacent(
     xPositions: Map<string, number>,
     layerMap: Map<string, number>,
@@ -1964,6 +2086,12 @@ function calculatePositions(
     nudgeParentsTowardsChildren(xPositions, layerMap, maps, visibleNodeIds, config);
 
     resolveLayerCollisions(xPositions, layerMap, visibleNodeIds, config);
+
+    nudgeChildrenTowardsParents(xPositions, layerMap, maps, visibleNodeIds, config);
+
+    resolveLayerCollisions(xPositions, layerMap, visibleNodeIds, config);
+
+    centerChildrenUnderParents(xPositions, layerMap, maps, visibleNodeIds, config);
 
     positionFamilyNodes(familyNodes, xPositions, layerMap, config);
 
@@ -2341,6 +2469,7 @@ export const _testInternals = {
     minimizeCrossingsImproved,
     ensureSpousesAdjacent,
     nudgeParentsTowardsChildren,
+    nudgeChildrenTowardsParents,
     determineVisibleNodes,
     buildConnections,
     calculateDescendantCounts,

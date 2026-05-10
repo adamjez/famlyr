@@ -1,0 +1,597 @@
+{
+  "id": "00000000-0000-7000-8000-000000000100",
+  "name": "Test Family Tree",
+  "description": null,
+  "ownerId": "00000000-0000-7000-8000-000000000200",
+  "createdAt": "2025-01-01T00:00:00Z",
+  "updatedAt": "2025-01-01T00:00:00Z",
+  "persons": [
+    {
+      "id": "00000000-0000-7000-8000-000000000001",
+      "firstName": "Erik",
+      "lastName": "Novák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000002",
+      "firstName": "Tomáš",
+      "lastName": "Novák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000003",
+      "firstName": "Jan",
+      "lastName": "Novák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000004",
+      "firstName": "Petr",
+      "lastName": "Novák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000005",
+      "firstName": "Lukáš",
+      "lastName": "Novák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000006",
+      "firstName": "Anna",
+      "lastName": "Nováková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000007",
+      "firstName": "Karel",
+      "lastName": "Novák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000008",
+      "firstName": "Eva",
+      "lastName": "Nováková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000009",
+      "firstName": "Ondřej",
+      "lastName": "Dvořák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000010",
+      "firstName": "Marie",
+      "lastName": "Procházkaová",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000011",
+      "firstName": "Jakub",
+      "lastName": "Kučera",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000012",
+      "firstName": "Lucie",
+      "lastName": "Veselá",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000013",
+      "firstName": "Filip",
+      "lastName": "Dvořák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000014",
+      "firstName": "Tereza",
+      "lastName": "Nováková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000015",
+      "firstName": "Klára",
+      "lastName": "Horáková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000016",
+      "firstName": "Matěj",
+      "lastName": "Němec",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000017",
+      "firstName": "Vojtěch",
+      "lastName": "Němec",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000018",
+      "firstName": "Hana",
+      "lastName": "Procházkaová",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000019",
+      "firstName": "Nela",
+      "lastName": "Mareková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000020",
+      "firstName": "David",
+      "lastName": "Marek",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000021",
+      "firstName": "Marek",
+      "lastName": "Dvořák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000022",
+      "firstName": "Ema",
+      "lastName": "Veselá",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000023",
+      "firstName": "Adéla",
+      "lastName": "Pokorná",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000024",
+      "firstName": "Barbora",
+      "lastName": "Mareková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000025",
+      "firstName": "Petra",
+      "lastName": "Mareková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000026",
+      "firstName": "Pavel",
+      "lastName": "Novák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000027",
+      "firstName": "Jana",
+      "lastName": "Nováková",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000028",
+      "firstName": "Jiří",
+      "lastName": "Král",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000029",
+      "firstName": "Ivana",
+      "lastName": "Králová",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000030",
+      "firstName": "Adam",
+      "lastName": "Dvořák",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000031",
+      "firstName": "Markéta",
+      "lastName": "Veselá",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000032",
+      "firstName": "Martin",
+      "lastName": "Svoboda",
+      "gender": "Male",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000033",
+      "firstName": "Simona",
+      "lastName": "Svobodaová",
+      "gender": "Female",
+      "birthDate": null,
+      "deathDate": null,
+      "primaryPhotoUrl": null
+    }
+  ],
+  "relationships": [
+    {
+      "id": "00000000-0000-7000-8000-000000000500",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000001",
+      "relativeId": "00000000-0000-7000-8000-000000000006"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000501",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000001",
+      "relativeId": "00000000-0000-7000-8000-000000000003"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000502",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000002",
+      "relativeId": "00000000-0000-7000-8000-000000000006"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000503",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000002",
+      "relativeId": "00000000-0000-7000-8000-000000000003"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000504",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000003",
+      "relativeId": "00000000-0000-7000-8000-000000000007"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000505",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000003",
+      "relativeId": "00000000-0000-7000-8000-000000000008"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000506",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000004",
+      "relativeId": "00000000-0000-7000-8000-000000000007"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000507",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000004",
+      "relativeId": "00000000-0000-7000-8000-000000000008"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000508",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000005",
+      "relativeId": "00000000-0000-7000-8000-000000000008"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000509",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000005",
+      "relativeId": "00000000-0000-7000-8000-000000000007"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000510",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000006",
+      "relativeId": "00000000-0000-7000-8000-000000000013"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000511",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000006",
+      "relativeId": "00000000-0000-7000-8000-000000000012"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000512",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000007",
+      "relativeId": "00000000-0000-7000-8000-000000000026"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000513",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000007",
+      "relativeId": "00000000-0000-7000-8000-000000000027"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000514",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000008",
+      "relativeId": "00000000-0000-7000-8000-000000000007"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000515",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000008",
+      "relativeId": "00000000-0000-7000-8000-000000000029"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000516",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000008",
+      "relativeId": "00000000-0000-7000-8000-000000000028"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000517",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000009",
+      "relativeId": "00000000-0000-7000-8000-000000000013"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000518",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000009",
+      "relativeId": "00000000-0000-7000-8000-000000000012"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000519",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000010",
+      "relativeId": "00000000-0000-7000-8000-000000000012"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000520",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000010",
+      "relativeId": "00000000-0000-7000-8000-000000000013"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000521",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000011",
+      "relativeId": "00000000-0000-7000-8000-000000000006"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000522",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000012",
+      "relativeId": "00000000-0000-7000-8000-000000000033"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000523",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000012",
+      "relativeId": "00000000-0000-7000-8000-000000000032"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000524",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000013",
+      "relativeId": "00000000-0000-7000-8000-000000000012"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000525",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000013",
+      "relativeId": "00000000-0000-7000-8000-000000000031"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000526",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000013",
+      "relativeId": "00000000-0000-7000-8000-000000000030"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000527",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000014",
+      "relativeId": "00000000-0000-7000-8000-000000000003"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000528",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000015",
+      "relativeId": "00000000-0000-7000-8000-000000000001"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000529",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000016",
+      "relativeId": "00000000-0000-7000-8000-000000000010"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000530",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000017",
+      "relativeId": "00000000-0000-7000-8000-000000000010"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000531",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000017",
+      "relativeId": "00000000-0000-7000-8000-000000000016"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000532",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000018",
+      "relativeId": "00000000-0000-7000-8000-000000000017"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000533",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000019",
+      "relativeId": "00000000-0000-7000-8000-000000000010"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000534",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000019",
+      "relativeId": "00000000-0000-7000-8000-000000000020"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000535",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000019",
+      "relativeId": "00000000-0000-7000-8000-000000000016"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000536",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000021",
+      "relativeId": "00000000-0000-7000-8000-000000000009"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000537",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000021",
+      "relativeId": "00000000-0000-7000-8000-000000000023"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000538",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000022",
+      "relativeId": "00000000-0000-7000-8000-000000000023"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000539",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000022",
+      "relativeId": "00000000-0000-7000-8000-000000000009"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000540",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000024",
+      "relativeId": "00000000-0000-7000-8000-000000000019"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000541",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000024",
+      "relativeId": "00000000-0000-7000-8000-000000000020"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000542",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000025",
+      "relativeId": "00000000-0000-7000-8000-000000000020"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000543",
+      "type": "Parent",
+      "subjectId": "00000000-0000-7000-8000-000000000025",
+      "relativeId": "00000000-0000-7000-8000-000000000019"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000544",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000026",
+      "relativeId": "00000000-0000-7000-8000-000000000027"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000545",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000028",
+      "relativeId": "00000000-0000-7000-8000-000000000029"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000546",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000031",
+      "relativeId": "00000000-0000-7000-8000-000000000030"
+    },
+    {
+      "id": "00000000-0000-7000-8000-000000000547",
+      "type": "Spouse",
+      "subjectId": "00000000-0000-7000-8000-000000000033",
+      "relativeId": "00000000-0000-7000-8000-000000000032"
+    }
+  ]
+}

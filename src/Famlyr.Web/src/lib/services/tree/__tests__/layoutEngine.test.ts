@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateLayout, _testInternals } from '../layoutEngine';
 import type { TreeLayout, TreeNode, LayoutConfig } from '$lib/types/tree';
 import { DEFAULT_LAYOUT_CONFIG } from '$lib/types/tree';
-import type { FamilyTreeModel } from '$lib/types/api';
+import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
 import { person, parentRel, spouseRel, tree, nuclearFamily, threeGenerations, resetIds } from './treeBuilder';
-import { assertWithDebug } from './testUtils';
+import { assertWithDebug, printLayout } from './testUtils';
+import realTreeData from './realTreeData.json';
 
 beforeEach(() => {
     resetIds();
@@ -103,6 +104,22 @@ function assertStructuralInvariants(layout: TreeLayout): void {
     assertNoOverlaps(layout);
     assertChildrenBelowParents(layout);
     assertSpousesSameLayer(layout);
+}
+
+function parentsCenterX(layout: TreeLayout, ...parentIds: string[]): number {
+    const xs = parentIds.map(id => {
+        const n = nodeById(layout, id);
+        return n.position.x + n.width / 2;
+    });
+    return (Math.min(...xs) + Math.max(...xs)) / 2;
+}
+
+function childrenCenterX(layout: TreeLayout, ...childIds: string[]): number {
+    const xs = childIds.map(id => {
+        const n = nodeById(layout, id);
+        return n.position.x + n.width / 2;
+    });
+    return (Math.min(...xs) + Math.max(...xs)) / 2;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -910,7 +927,14 @@ describe('layoutEngine', () => {
          *       └── SabinaJr
          */
         function multiBranchFamily() {
-            // Gen 0 — focus couple
+            // Multi-branch family tree based on a real-world family structure
+            // Gen -1 — great-grandparents
+            const robert = person({ id: 'robert', firstName: 'Robert', gender: 'Male' });
+            const stepanka = person({ id: 'stepanka', firstName: 'Stepanka', gender: 'Female' });
+            const josefa = person({ id: 'josefa', firstName: 'Josefa', gender: 'Female' });
+            const rudolf = person({ id: 'rudolf', firstName: 'Rudolf', gender: 'Male' });
+
+            // Gen 0 — Helmut + Jarmila
             const helmut = person({ id: 'helmut', firstName: 'Helmut', gender: 'Male' });
             const jarmila = person({ id: 'jarmila', firstName: 'Jarmila', gender: 'Female' });
 
@@ -918,26 +942,34 @@ describe('layoutEngine', () => {
             const daniel = person({ id: 'daniel', firstName: 'Daniel', gender: 'Male' });
             const alena = person({ id: 'alena', firstName: 'Alena', gender: 'Female' });
             const zuzana = person({ id: 'zuzana', firstName: 'Zuzana', gender: 'Female' });
-            const sylva = person({ id: 'sylva', firstName: 'Sylva', gender: 'Female' });
             const rostislav = person({ id: 'rostislav', firstName: 'Rostislav', gender: 'Male' });
+            const sylva = person({ id: 'sylva', firstName: 'Sylva', gender: 'Female' });
 
-            // Gen 2 — grandchildren
+            // Gen 2 — grandchildren + spouses
             const danielJr = person({ id: 'danielJr', firstName: 'DanielJr', gender: 'Male' });
             const alenaJr = person({ id: 'alenaJr', firstName: 'AlenaJr', gender: 'Female' });
             const martinM = person({ id: 'martinM', firstName: 'MartinM', gender: 'Male' });
-            const martinP = person({ id: 'martinP', firstName: 'MartinP', gender: 'Male' });
             const sabina = person({ id: 'sabina', firstName: 'Sabina', gender: 'Female' });
-            const sabinaJr = person({ id: 'sabinaJr', firstName: 'SabinaJr', gender: 'Female' });
+            const martinP = person({ id: 'martinP', firstName: 'MartinP', gender: 'Male' });
 
-            // Gen 3 — great-grandchildren (children of MartinP + Sabina)
+            // Gen 3 — great-grandchildren
             const sofie = person({ id: 'sofie', firstName: 'Sofie', gender: 'Female' });
             const mia = person({ id: 'mia', firstName: 'Mia', gender: 'Female' });
 
             const rels = [
+                // Great-grandparents
+                spouseRel('robert', 'stepanka'),
+                spouseRel('josefa', 'rudolf'),
+
+                // Jarmila is child of Robert+Stepanka
+                parentRel('jarmila', 'robert'), parentRel('jarmila', 'stepanka'),
+                // Helmut is child of Josefa+Rudolf
+                parentRel('helmut', 'josefa'), parentRel('helmut', 'rudolf'),
+
                 // Helmut + Jarmila
                 spouseRel('helmut', 'jarmila'),
 
-                // Their children
+                // Their children: Daniel, Zuzana, Sylva
                 parentRel('daniel', 'helmut'), parentRel('daniel', 'jarmila'),
                 parentRel('zuzana', 'helmut'), parentRel('zuzana', 'jarmila'),
                 parentRel('sylva', 'helmut'), parentRel('sylva', 'jarmila'),
@@ -947,13 +979,10 @@ describe('layoutEngine', () => {
                 parentRel('danielJr', 'daniel'), parentRel('danielJr', 'alena'),
                 parentRel('alenaJr', 'daniel'), parentRel('alenaJr', 'alena'),
 
-                // Zuzana → MartinM
-                parentRel('martinM', 'zuzana'),
-
-                // Sylva + Rostislav → MartinP, SabinaJr
-                spouseRel('sylva', 'rostislav'),
-                parentRel('martinP', 'sylva'), parentRel('martinP', 'rostislav'),
-                parentRel('sabinaJr', 'sylva'), parentRel('sabinaJr', 'rostislav'),
+                // Zuzana + Rostislav → MartinM, Sabina
+                spouseRel('zuzana', 'rostislav'),
+                parentRel('martinM', 'zuzana'), parentRel('martinM', 'rostislav'),
+                parentRel('sabina', 'zuzana'), parentRel('sabina', 'rostislav'),
 
                 // MartinP + Sabina → Sofie, Mia
                 spouseRel('martinP', 'sabina'),
@@ -962,29 +991,14 @@ describe('layoutEngine', () => {
             ];
 
             const allPersons = [
+                robert, stepanka, josefa, rudolf,
                 helmut, jarmila,
-                daniel, alena, zuzana, sylva, rostislav,
-                danielJr, alenaJr, martinM, martinP, sabina, sabinaJr,
+                daniel, alena, zuzana, rostislav, sylva,
+                danielJr, alenaJr, martinM, sabina, martinP,
                 sofie, mia,
             ];
 
             return { allPersons, rels, helmut, martinP, sabina, sofie, mia };
-        }
-
-        function parentsCenterX(layout: TreeLayout, ...parentIds: string[]): number {
-            const xs = parentIds.map(id => {
-                const n = nodeById(layout, id);
-                return n.position.x + n.width / 2;
-            });
-            return (Math.min(...xs) + Math.max(...xs)) / 2;
-        }
-
-        function childrenCenterX(layout: TreeLayout, ...childIds: string[]): number {
-            const xs = childIds.map(id => {
-                const n = nodeById(layout, id);
-                return n.position.x + n.width / 2;
-            });
-            return (Math.min(...xs) + Math.max(...xs)) / 2;
         }
 
         it('centers great-grandchildren under their parents in multi-branch tree', () => {
@@ -1042,12 +1056,12 @@ describe('layoutEngine', () => {
                 `DanielJr+AlenaJr not centered under Daniel+Alena (offset=${Math.abs(danielParentCenter - danielChildCenter)}px)`
             ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
 
-            // Sylva+Rostislav branch
-            const sylvaParentCenter = parentsCenterX(layout, 'sylva', 'rostislav');
-            const sylvaChildCenter = childrenCenterX(layout, 'martinP', 'sabinaJr');
+            // Zuzana+Rostislav branch
+            const zuzanaParentCenter = parentsCenterX(layout, 'zuzana', 'rostislav');
+            const zuzanaChildCenter = childrenCenterX(layout, 'martinM', 'sabina');
             expect(
-                Math.abs(sylvaParentCenter - sylvaChildCenter),
-                `MartinP+SabinaJr not centered under Sylva+Rostislav (offset=${Math.abs(sylvaParentCenter - sylvaChildCenter)}px)`
+                Math.abs(zuzanaParentCenter - zuzanaChildCenter),
+                `MartinM+Sabina not centered under Zuzana+Rostislav (offset=${Math.abs(zuzanaParentCenter - zuzanaChildCenter)}px)`
             ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
 
             // MartinP+Sabina branch
@@ -1057,6 +1071,177 @@ describe('layoutEngine', () => {
                 Math.abs(martinParentCenter - martinChildCenter),
                 `Sofie+Mia not centered under MartinP+Sabina (offset=${Math.abs(martinParentCenter - martinChildCenter)}px)`
             ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+            });
+        });
+    });
+
+    describe('real tree data', () => {
+        it('centers Sofie+Mia under MartinP+Sabina in full 33-person tree', () => {
+            const treeData: FamilyTreeModel = realTreeData as FamilyTreeModel;
+            const persons: PersonModel[] = treeData.persons;
+            const relationships = treeData.relationships;
+            const t: FamilyTreeModel = {
+                ...treeData,
+                persons,
+                relationships,
+            };
+            const expandAll = new Set(persons.map(p => p.id));
+            const layout = calculateLayout(t, null, { expandedNodeIds: expandAll });
+
+            const martinP = persons.find(p => p.firstName === 'David' && p.lastName === 'Marek')!;
+            const sabina = persons.find(p => p.firstName === 'Nela' && p.lastName === 'Mareková')!;
+            const sofie = persons.find(p => p.firstName === 'Barbora' && p.lastName === 'Mareková')!;
+            const mia = persons.find(p => p.firstName === 'Petra' && p.lastName === 'Mareková')!;
+
+            assertWithDebug(layout, 'Real tree: Sofie+Mia centering', () => {
+                assertNoOverlaps(layout);
+
+                const pCenter = parentsCenterX(layout, martinP.id, sabina.id);
+                const cCenter = childrenCenterX(layout, sofie.id, mia.id);
+
+                expect(
+                    Math.abs(pCenter - cCenter),
+                    `Sofie+Mia center (${cCenter}) should be near MartinP+Sabina center (${pCenter}), ` +
+                    `but offset is ${Math.abs(pCenter - cCenter)}px`
+                ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+            });
+        });
+    });
+
+    describe('children from separate families on same layer', () => {
+        it('places children of two unrelated families on the same layer', () => {
+            const dad = person({ id: 'dad', firstName: 'Dad', gender: 'Male' });
+            const mom = person({ id: 'mom', firstName: 'Mom', gender: 'Female' });
+            const child1 = person({ id: 'child1', firstName: 'Child1', gender: 'Male' });
+
+            const dad2 = person({ id: 'dad2', firstName: 'Dad2', gender: 'Male' });
+            const mom2 = person({ id: 'mom2', firstName: 'Mom2', gender: 'Female' });
+            const child2 = person({ id: 'child2', firstName: 'Child2', gender: 'Male' });
+
+            const t = tree(
+                [dad, mom, child1, dad2, mom2, child2],
+                [
+                    spouseRel(dad.id, mom.id),
+                    parentRel(child1.id, dad.id),
+                    parentRel(child1.id, mom.id),
+                    spouseRel(dad2.id, mom2.id),
+                    parentRel(child2.id, dad2.id),
+                    parentRel(child2.id, mom2.id),
+                ]
+            );
+
+            const expandAll = new Set([dad.id, mom.id, child1.id, dad2.id, mom2.id, child2.id]);
+            const layout = calculateLayout(t, null, { expandedNodeIds: expandAll });
+
+            assertWithDebug(layout, 'Two unrelated families: children same layer', () => {
+                assertStructuralInvariants(layout);
+
+                const c1Node = nodeById(layout, child1.id);
+                const c2Node = nodeById(layout, child2.id);
+
+                expect(
+                    c1Node.layer,
+                    `Child1 (layer ${c1Node.layer}) and Child2 (layer ${c2Node.layer}) should be on the same layer`
+                ).toBe(c2Node.layer);
+            });
+        });
+
+        it('places children on same layer even when one family has no spouse relationship', () => {
+            const dad = person({ id: 'dad', firstName: 'Dad', gender: 'Male' });
+            const mom = person({ id: 'mom', firstName: 'Mom', gender: 'Female' });
+            const child1 = person({ id: 'child1', firstName: 'Child1', gender: 'Male' });
+
+            const dad2 = person({ id: 'dad2', firstName: 'Dad2', gender: 'Male' });
+            const mom2 = person({ id: 'mom2', firstName: 'Mom2', gender: 'Female' });
+            const child2 = person({ id: 'child2', firstName: 'Child2' });
+
+            const t = tree(
+                [dad, mom, child1, dad2, mom2, child2],
+                [
+                    spouseRel(dad.id, mom.id),
+                    parentRel(child1.id, dad.id),
+                    parentRel(child1.id, mom.id),
+                    parentRel(child2.id, dad2.id),
+                    parentRel(child2.id, mom2.id),
+                ]
+            );
+
+            const expandAll = new Set([dad.id, mom.id, child1.id, dad2.id, mom2.id, child2.id]);
+            const layout = calculateLayout(t, null, { expandedNodeIds: expandAll });
+
+            assertWithDebug(layout, 'Co-parents without spouse: children same layer', () => {
+                assertStructuralInvariants(layout);
+
+                const c1Node = nodeById(layout, child1.id);
+                const c2Node = nodeById(layout, child2.id);
+
+                expect(
+                    c1Node.layer,
+                    `Child1 (layer ${c1Node.layer}) and Child2 (layer ${c2Node.layer}) should be on the same layer`
+                ).toBe(c2Node.layer);
+
+                const dad2Node = nodeById(layout, dad2.id);
+                const mom2Node = nodeById(layout, mom2.id);
+                expect(
+                    dad2Node.layer,
+                    `Dad2 (layer ${dad2Node.layer}) and Mom2 (layer ${mom2Node.layer}) should be on the same layer as co-parents`
+                ).toBe(mom2Node.layer);
+
+                const pCenter2 = parentsCenterX(layout, dad2.id, mom2.id);
+                const cCenter2 = childrenCenterX(layout, child2.id);
+                expect(
+                    Math.abs(pCenter2 - cCenter2),
+                    `Child2 should be centered under Dad2+Mom2 (parents center: ${pCenter2}, child center: ${cCenter2})`
+                ).toBeLessThanOrEqual(5);
+            });
+        });
+
+        it('places children on same layer with UUID-style ids and no spouse rel', () => {
+            const dad = person({ id: '00000000-0000-7000-9000-000000000001', firstName: 'Dad', gender: 'Male' });
+            const mom = person({ id: '00000000-0000-7000-9000-000000000002', firstName: 'Mom', gender: 'Female' });
+            const child1 = person({ id: '00000000-0000-7000-9000-000000000003', firstName: 'Child1', gender: 'Male' });
+            const dad2 = person({ id: '00000000-0000-7000-9000-000000000004', firstName: 'Dad2', gender: 'Male' });
+            const mom2 = person({ id: '00000000-0000-7000-9000-000000000005', firstName: 'Mom2', gender: 'Female' });
+            const child2 = person({ id: '00000000-0000-7000-9000-000000000006', firstName: 'Child2' });
+
+            const t = tree(
+                [dad, mom, child1, dad2, mom2, child2],
+                [
+                    spouseRel(dad.id, mom.id),
+                    parentRel(child1.id, mom.id),
+                    parentRel(child1.id, dad.id),
+                    parentRel(child2.id, dad2.id),
+                    parentRel(child2.id, mom2.id),
+                ]
+            );
+
+            const expandAll = new Set([dad.id, mom.id, child1.id, dad2.id, mom2.id, child2.id]);
+            const layout = calculateLayout(t, null, { expandedNodeIds: expandAll });
+
+            assertWithDebug(layout, 'UUID co-parents bug: children same layer', () => {
+                assertNoOverlaps(layout);
+
+                const c1Node = nodeById(layout, child1.id);
+                const c2Node = nodeById(layout, child2.id);
+
+                expect(
+                    c1Node.layer,
+                    `Child1 (layer ${c1Node.layer}) and Child2 (layer ${c2Node.layer}) should be on same layer`
+                ).toBe(c2Node.layer);
+
+                const d2Node = nodeById(layout, dad2.id);
+                const m2Node = nodeById(layout, mom2.id);
+                expect(
+                    d2Node.layer,
+                    `Dad2 (layer ${d2Node.layer}) and Mom2 (layer ${m2Node.layer}) should be co-parents on same layer`
+                ).toBe(m2Node.layer);
+
+                const pCenter = parentsCenterX(layout, dad2.id, mom2.id);
+                const cCenter = childrenCenterX(layout, child2.id);
+                expect(
+                    Math.abs(pCenter - cCenter),
+                    `Child2 should be centered under Dad2+Mom2 (parents center: ${pCenter}, child center: ${cCenter})`
+                ).toBeLessThanOrEqual(5);
             });
         });
     });
