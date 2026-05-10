@@ -4,6 +4,7 @@ import type { TreeLayout, TreeNode, LayoutConfig } from '$lib/types/tree';
 import { DEFAULT_LAYOUT_CONFIG } from '$lib/types/tree';
 import type { FamilyTreeModel } from '$lib/types/api';
 import { person, parentRel, spouseRel, tree, nuclearFamily, threeGenerations, resetIds } from './treeBuilder';
+import { assertWithDebug } from './testUtils';
 
 beforeEach(() => {
     resetIds();
@@ -115,10 +116,12 @@ describe('layoutEngine', () => {
             const t = tree([p]);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            expect(visibleNodes(layout)).toHaveLength(1);
-            const solo = nodeById(layout, 'solo');
-            expect(solo.layer).toBe(0);
+            assertWithDebug(layout, 'Single person', () => {
+                assertStructuralInvariants(layout);
+                expect(visibleNodes(layout)).toHaveLength(1);
+                const solo = nodeById(layout, 'solo');
+                expect(solo.layer).toBe(0);
+            });
         });
 
         it('positions a focused lone person', () => {
@@ -126,8 +129,10 @@ describe('layoutEngine', () => {
             const t = tree([p]);
             const layout = calculateLayout(t, 'solo');
 
-            assertStructuralInvariants(layout);
-            expect(visibleNodes(layout)).toHaveLength(1);
+            assertWithDebug(layout, 'Focused lone person', () => {
+                assertStructuralInvariants(layout);
+                expect(visibleNodes(layout)).toHaveLength(1);
+            });
         });
     });
 
@@ -138,15 +143,15 @@ describe('layoutEngine', () => {
             const t = tree([husband, wife], [spouseRel('h', 'w')]);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            const h = nodeById(layout, 'h');
-            const w = nodeById(layout, 'w');
-            expect(h.layer).toBe(w.layer);
+            assertWithDebug(layout, 'Couple (no children)', () => {
+                assertStructuralInvariants(layout);
+                const h = nodeById(layout, 'h');
+                const w = nodeById(layout, 'w');
+                expect(h.layer).toBe(w.layer);
 
-            // Spouses without children may not be forced adjacent; verify they are at least
-            // on the same layer and reasonably close (within a few node widths)
-            const gap = Math.abs(h.position.x - w.position.x);
-            expect(gap).toBeLessThanOrEqual(DEFAULT_LAYOUT_CONFIG.nodeWidth * 3);
+                const gap = Math.abs(h.position.x - w.position.x);
+                expect(gap).toBeLessThanOrEqual(DEFAULT_LAYOUT_CONFIG.nodeWidth * 3);
+            });
         });
 
         it('has a spouse connection', () => {
@@ -155,8 +160,10 @@ describe('layoutEngine', () => {
             const t = tree([husband, wife], [spouseRel('h', 'w')]);
             const layout = calculateLayout(t, null);
 
-            const spouseConns = layout.connections.filter(c => c.type === 'spouse');
-            expect(spouseConns).toHaveLength(1);
+            assertWithDebug(layout, 'Couple spouse connection', () => {
+                const spouseConns = layout.connections.filter(c => c.type === 'spouse');
+                expect(spouseConns).toHaveLength(1);
+            });
         });
     });
 
@@ -167,10 +174,12 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            const father = nodeById(layout, fam.father.id);
-            const child = nodeById(layout, fam.children[0].id);
-            expect(father.layer).toBeLessThan(child.layer);
+            assertWithDebug(layout, 'Nuclear family: parents above children', () => {
+                assertStructuralInvariants(layout);
+                const father = nodeById(layout, fam.father.id);
+                const child = nodeById(layout, fam.children[0].id);
+                expect(father.layer).toBeLessThan(child.layer);
+            });
         });
 
         it('centers children under parents', () => {
@@ -179,16 +188,18 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Nuclear family: centers children', () => {
+                assertStructuralInvariants(layout);
 
-            const father = nodeById(layout, fam.father.id);
-            const mother = nodeById(layout, fam.mother.id);
-            const parentCenter = (father.position.x + mother.position.x + DEFAULT_LAYOUT_CONFIG.nodeWidth) / 2;
+                const father = nodeById(layout, fam.father.id);
+                const mother = nodeById(layout, fam.mother.id);
+                const parentCenter = (father.position.x + mother.position.x + DEFAULT_LAYOUT_CONFIG.nodeWidth) / 2;
 
-            const childXs = fam.children.map(c => nodeById(layout, c.id).position.x);
-            const childCenter = (Math.min(...childXs) + Math.max(...childXs) + DEFAULT_LAYOUT_CONFIG.nodeWidth) / 2;
+                const childXs = fam.children.map(c => nodeById(layout, c.id).position.x);
+                const childCenter = (Math.min(...childXs) + Math.max(...childXs) + DEFAULT_LAYOUT_CONFIG.nodeWidth) / 2;
 
-            expect(Math.abs(parentCenter - childCenter)).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+                expect(Math.abs(parentCenter - childCenter)).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+            });
         });
 
         it('has no overlapping nodes with 5 children', () => {
@@ -197,8 +208,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            expect(visibleNodes(layout)).toHaveLength(7);
+            assertWithDebug(layout, 'Nuclear family: 5 children', () => {
+                assertStructuralInvariants(layout);
+                expect(visibleNodes(layout)).toHaveLength(7);
+            });
         });
 
         it('creates parent-child connections', () => {
@@ -207,8 +220,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const pcConns = layout.connections.filter(c => c.type === 'parent-child');
-            expect(pcConns.length).toBeGreaterThanOrEqual(1);
+            assertWithDebug(layout, 'Nuclear family: connections', () => {
+                const pcConns = layout.connections.filter(c => c.type === 'parent-child');
+                expect(pcConns.length).toBeGreaterThanOrEqual(1);
+            });
         });
     });
 
@@ -218,14 +233,16 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Three generations: layers', () => {
+                assertStructuralInvariants(layout);
 
-            const grandpa = nodeById(layout, 'grandpa');
-            const father = nodeById(layout, 'father');
-            const child = nodeById(layout, 'child1');
+                const grandpa = nodeById(layout, 'grandpa');
+                const father = nodeById(layout, 'father');
+                const child = nodeById(layout, 'child1');
 
-            expect(grandpa.layer).toBeLessThan(father.layer);
-            expect(father.layer).toBeLessThan(child.layer);
+                expect(grandpa.layer).toBeLessThan(father.layer);
+                expect(father.layer).toBeLessThan(child.layer);
+            });
         });
 
         it('has no node overlaps', () => {
@@ -233,7 +250,9 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Three generations: overlaps', () => {
+                assertStructuralInvariants(layout);
+            });
         });
 
         it('positions uncle and father on same layer', () => {
@@ -241,9 +260,11 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const father = nodeById(layout, 'father');
-            const uncle = nodeById(layout, 'uncle');
-            expect(father.layer).toBe(uncle.layer);
+            assertWithDebug(layout, 'Three generations: uncle+father layer', () => {
+                const father = nodeById(layout, 'father');
+                const uncle = nodeById(layout, 'uncle');
+                expect(father.layer).toBe(uncle.layer);
+            });
         });
 
         it('has minimal edge crossings', () => {
@@ -251,29 +272,31 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            // Both grandparent→parent and parent→child relationships form K₂,₂
-            // complete bipartite subgraphs, each with a minimum of 1 crossing.
-            // So 2 crossings is the theoretical minimum for this topology.
-            const maps = _testInternals.buildRelationshipMaps(
-                layout.connections
-                    .filter(c => c.type === 'parent-child')
-                    .flatMap(c => c.toIds.map(childId => ({
-                        id: `r-${c.fromIds[0]}-${childId}`,
-                        type: 'Parent' as const,
-                        subjectId: childId,
-                        relativeId: c.fromIds[0],
-                    })))
-            );
-            const layerMap = new Map<string, number>();
-            const visibleNodeIds = new Set<string>();
-            const xPositions = new Map<string, number>();
-            for (const node of Array.from(layout.nodes.values()).filter(n => n.isVisible)) {
-                layerMap.set(node.id, node.layer);
-                visibleNodeIds.add(node.id);
-                xPositions.set(node.id, node.position.x);
-            }
-            const crossings = _testInternals.countCrossingsOptimized(layerMap, xPositions, maps, visibleNodeIds, DEFAULT_LAYOUT_CONFIG);
-            expect(crossings).toBeLessThanOrEqual(2);
+            assertWithDebug(layout, 'Three generations: crossings', () => {
+                // Both grandparent→parent and parent→child relationships form K₂,₂
+                // complete bipartite subgraphs, each with a minimum of 1 crossing.
+                // So 2 crossings is the theoretical minimum for this topology.
+                const maps = _testInternals.buildRelationshipMaps(
+                    layout.connections
+                        .filter(c => c.type === 'parent-child')
+                        .flatMap(c => c.toIds.map(childId => ({
+                            id: `r-${c.fromIds[0]}-${childId}`,
+                            type: 'Parent' as const,
+                            subjectId: childId,
+                            relativeId: c.fromIds[0],
+                        })))
+                );
+                const layerMap = new Map<string, number>();
+                const visibleNodeIds = new Set<string>();
+                const xPositions = new Map<string, number>();
+                for (const node of Array.from(layout.nodes.values()).filter(n => n.isVisible)) {
+                    layerMap.set(node.id, node.layer);
+                    visibleNodeIds.add(node.id);
+                    xPositions.set(node.id, node.position.x);
+                }
+                const crossings = _testInternals.countCrossingsOptimized(layerMap, xPositions, maps, visibleNodeIds, DEFAULT_LAYOUT_CONFIG);
+                expect(crossings).toBeLessThanOrEqual(2);
+            });
         });
     });
 
@@ -297,11 +320,13 @@ describe('layoutEngine', () => {
             const t = tree([father, mother1, mother2, child1, child2], rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Half-siblings: same layer', () => {
+                assertStructuralInvariants(layout);
 
-            const c1 = nodeById(layout, 'c1');
-            const c2 = nodeById(layout, 'c2');
-            expect(c1.layer).toBe(c2.layer);
+                const c1 = nodeById(layout, 'c1');
+                const c2 = nodeById(layout, 'c2');
+                expect(c1.layer).toBe(c2.layer);
+            });
         });
 
         it('keeps all parents on the same layer', () => {
@@ -323,11 +348,13 @@ describe('layoutEngine', () => {
             const t = tree([father, mother1, mother2, child1, child2], rels);
             const layout = calculateLayout(t, null);
 
-            const dad = nodeById(layout, 'dad');
-            const mom1 = nodeById(layout, 'mom1');
-            const mom2 = nodeById(layout, 'mom2');
-            expect(dad.layer).toBe(mom1.layer);
-            expect(dad.layer).toBe(mom2.layer);
+            assertWithDebug(layout, 'Half-siblings: parents same layer', () => {
+                const dad = nodeById(layout, 'dad');
+                const mom1 = nodeById(layout, 'mom1');
+                const mom2 = nodeById(layout, 'mom2');
+                expect(dad.layer).toBe(mom1.layer);
+                expect(dad.layer).toBe(mom2.layer);
+            });
         });
 
         it('has no overlapping nodes', () => {
@@ -349,7 +376,9 @@ describe('layoutEngine', () => {
             const t = tree([father, mother1, mother2, child1, child2], rels);
             const layout = calculateLayout(t, null);
 
-            assertNoOverlaps(layout);
+            assertWithDebug(layout, 'Half-siblings: no overlaps', () => {
+                assertNoOverlaps(layout);
+            });
         });
     });
 
@@ -367,10 +396,12 @@ describe('layoutEngine', () => {
             const t = tree([dad, mom, child], rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Co-parents: connection type', () => {
+                assertStructuralInvariants(layout);
 
-            const coparentConns = layout.connections.filter(c => c.type === 'coparent');
-            expect(coparentConns).toHaveLength(1);
+                const coparentConns = layout.connections.filter(c => c.type === 'coparent');
+                expect(coparentConns).toHaveLength(1);
+            });
         });
 
         it('positions co-parents on the same layer', () => {
@@ -386,8 +417,10 @@ describe('layoutEngine', () => {
             const t = tree([dad, mom, child], rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            expect(nodeById(layout, 'dad').layer).toBe(nodeById(layout, 'mom').layer);
+            assertWithDebug(layout, 'Co-parents: same layer', () => {
+                assertStructuralInvariants(layout);
+                expect(nodeById(layout, 'dad').layer).toBe(nodeById(layout, 'mom').layer);
+            });
         });
     });
 
@@ -414,7 +447,9 @@ describe('layoutEngine', () => {
             const t = tree([p, s1, s2, s3, c1, c2, c3], rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Multiple spouses: 3 spouses no overlaps', () => {
+                assertStructuralInvariants(layout);
+            });
         });
 
         it('keeps all spouses on the same layer', () => {
@@ -430,10 +465,12 @@ describe('layoutEngine', () => {
             const t = tree([p, s1, s2], rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            const central = nodeById(layout, 'p');
-            expect(nodeById(layout, 's1').layer).toBe(central.layer);
-            expect(nodeById(layout, 's2').layer).toBe(central.layer);
+            assertWithDebug(layout, 'Multiple spouses: same layer', () => {
+                assertStructuralInvariants(layout);
+                const central = nodeById(layout, 'p');
+                expect(nodeById(layout, 's1').layer).toBe(central.layer);
+                expect(nodeById(layout, 's2').layer).toBe(central.layer);
+            });
         });
     });
 
@@ -445,8 +482,10 @@ describe('layoutEngine', () => {
             const t = tree([p1, p2, p3]);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            expect(visibleNodes(layout)).toHaveLength(3);
+            assertWithDebug(layout, 'Disconnected persons', () => {
+                assertStructuralInvariants(layout);
+                expect(visibleNodes(layout)).toHaveLength(3);
+            });
         });
 
         it('handles mix of connected and disconnected persons', () => {
@@ -456,8 +495,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            expect(visibleNodes(layout)).toHaveLength(4);
+            assertWithDebug(layout, 'Mixed connected+disconnected', () => {
+                assertStructuralInvariants(layout);
+                expect(visibleNodes(layout)).toHaveLength(4);
+            });
         });
     });
 
@@ -467,14 +508,16 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, 'child1');
 
-            const visible = visibleNodes(layout);
-            const visibleIds = new Set(visible.map(n => n.id));
+            assertWithDebug(layout, 'Focus: lineage visibility', () => {
+                const visible = visibleNodes(layout);
+                const visibleIds = new Set(visible.map(n => n.id));
 
-            expect(visibleIds.has('child1')).toBe(true);
-            expect(visibleIds.has('father')).toBe(true);
-            expect(visibleIds.has('mother')).toBe(true);
-            expect(visibleIds.has('grandpa')).toBe(true);
-            expect(visibleIds.has('grandma')).toBe(true);
+                expect(visibleIds.has('child1')).toBe(true);
+                expect(visibleIds.has('father')).toBe(true);
+                expect(visibleIds.has('mother')).toBe(true);
+                expect(visibleIds.has('grandpa')).toBe(true);
+                expect(visibleIds.has('grandma')).toBe(true);
+            });
         });
 
         it('shows focus person spouses', () => {
@@ -482,11 +525,13 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, 'father');
 
-            const visible = visibleNodes(layout);
-            const visibleIds = new Set(visible.map(n => n.id));
+            assertWithDebug(layout, 'Focus: spouses visible', () => {
+                const visible = visibleNodes(layout);
+                const visibleIds = new Set(visible.map(n => n.id));
 
-            expect(visibleIds.has('father')).toBe(true);
-            expect(visibleIds.has('mother')).toBe(true);
+                expect(visibleIds.has('father')).toBe(true);
+                expect(visibleIds.has('mother')).toBe(true);
+            });
         });
 
         it('shows direct children of focus person', () => {
@@ -494,11 +539,13 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, 'father');
 
-            const visible = visibleNodes(layout);
-            const visibleIds = new Set(visible.map(n => n.id));
+            assertWithDebug(layout, 'Focus: children visible', () => {
+                const visible = visibleNodes(layout);
+                const visibleIds = new Set(visible.map(n => n.id));
 
-            expect(visibleIds.has('child1')).toBe(true);
-            expect(visibleIds.has('child2')).toBe(true);
+                expect(visibleIds.has('child1')).toBe(true);
+                expect(visibleIds.has('child2')).toBe(true);
+            });
         });
 
         it('respects expanded nodes', () => {
@@ -518,8 +565,10 @@ describe('layoutEngine', () => {
                 expandedNodeIds: new Set(['kid']),
             });
 
-            const visibleIds = new Set(visibleNodes(layout).map(n => n.id));
-            expect(visibleIds.has('gkid')).toBe(true);
+            assertWithDebug(layout, 'Focus: expanded nodes', () => {
+                const visibleIds = new Set(visibleNodes(layout).map(n => n.id));
+                expect(visibleIds.has('gkid')).toBe(true);
+            });
         });
 
         it('shows all persons when no focus', () => {
@@ -527,7 +576,9 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            expect(visibleNodes(layout)).toHaveLength(fam.allPersons.length);
+            assertWithDebug(layout, 'No focus: all visible', () => {
+                expect(visibleNodes(layout)).toHaveLength(fam.allPersons.length);
+            });
         });
     });
 
@@ -538,8 +589,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const father = nodeById(layout, fam.father.id);
-            expect(father.descendantCount).toBe(3);
+            assertWithDebug(layout, 'Descendants: direct children', () => {
+                const father = nodeById(layout, fam.father.id);
+                expect(father.descendantCount).toBe(3);
+            });
         });
 
         it('counts zero for leaf nodes', () => {
@@ -548,9 +601,11 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            for (const child of fam.children) {
-                expect(nodeById(layout, child.id).descendantCount).toBe(0);
-            }
+            assertWithDebug(layout, 'Descendants: leaf nodes', () => {
+                for (const child of fam.children) {
+                    expect(nodeById(layout, child.id).descendantCount).toBe(0);
+                }
+            });
         });
 
         it('counts recursively across generations', () => {
@@ -558,9 +613,11 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const grandpa = nodeById(layout, 'grandpa');
-            // grandpa -> father, uncle (2 children) + child1, child2 (2 grandchildren) = 4
-            expect(grandpa.descendantCount).toBe(4);
+            assertWithDebug(layout, 'Descendants: recursive count', () => {
+                const grandpa = nodeById(layout, 'grandpa');
+                // grandpa -> father, uncle (2 children) + child1, child2 (2 grandchildren) = 4
+                expect(grandpa.descendantCount).toBe(4);
+            });
         });
     });
 
@@ -571,7 +628,9 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            expect(layout.familyNodes.size).toBeGreaterThanOrEqual(1);
+            assertWithDebug(layout, 'Family nodes: created', () => {
+                expect(layout.familyNodes.size).toBeGreaterThanOrEqual(1);
+            });
         });
 
         it('family node is between parent and child layers', () => {
@@ -580,15 +639,17 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const father = nodeById(layout, fam.father.id);
-            const child = nodeById(layout, fam.children[0].id);
+            assertWithDebug(layout, 'Family nodes: between layers', () => {
+                const father = nodeById(layout, fam.father.id);
+                const child = nodeById(layout, fam.children[0].id);
 
-            for (const fn of layout.familyNodes.values()) {
-                if (fn.parentIds.includes(fam.father.id)) {
-                    expect(fn.position.y).toBeGreaterThan(father.position.y);
-                    expect(fn.position.y).toBeLessThan(child.position.y);
+                for (const fn of layout.familyNodes.values()) {
+                    if (fn.parentIds.includes(fam.father.id)) {
+                        expect(fn.position.y).toBeGreaterThan(father.position.y);
+                        expect(fn.position.y).toBeLessThan(child.position.y);
+                    }
                 }
-            }
+            });
         });
     });
 
@@ -598,12 +659,14 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            for (const node of visibleNodes(layout)) {
-                expect(node.position.x).toBeGreaterThanOrEqual(layout.bounds.minX);
-                expect(node.position.x + node.width).toBeLessThanOrEqual(layout.bounds.maxX);
-                expect(node.position.y).toBeGreaterThanOrEqual(layout.bounds.minY);
-                expect(node.position.y + node.height).toBeLessThanOrEqual(layout.bounds.maxY);
-            }
+            assertWithDebug(layout, 'Bounds: contain all nodes', () => {
+                for (const node of visibleNodes(layout)) {
+                    expect(node.position.x).toBeGreaterThanOrEqual(layout.bounds.minX);
+                    expect(node.position.x + node.width).toBeLessThanOrEqual(layout.bounds.maxX);
+                    expect(node.position.y).toBeGreaterThanOrEqual(layout.bounds.minY);
+                    expect(node.position.y + node.height).toBeLessThanOrEqual(layout.bounds.maxY);
+                }
+            });
         });
 
         it('bounds width and height are positive', () => {
@@ -612,8 +675,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            expect(layout.bounds.width).toBeGreaterThan(0);
-            expect(layout.bounds.height).toBeGreaterThan(0);
+            assertWithDebug(layout, 'Bounds: positive dimensions', () => {
+                expect(layout.bounds.width).toBeGreaterThan(0);
+                expect(layout.bounds.height).toBeGreaterThan(0);
+            });
         });
     });
 
@@ -626,8 +691,10 @@ describe('layoutEngine', () => {
             const t = tree([dad, child], rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
-            expect(nodeById(layout, 'dad').layer).toBeLessThan(nodeById(layout, 'child').layer);
+            assertWithDebug(layout, 'Single parent: above child', () => {
+                assertStructuralInvariants(layout);
+                expect(nodeById(layout, 'dad').layer).toBeLessThan(nodeById(layout, 'child').layer);
+            });
         });
 
         it('handles single parent with multiple children', () => {
@@ -644,7 +711,9 @@ describe('layoutEngine', () => {
             const t = tree([dad, c1, c2, c3], rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Single parent: multiple children', () => {
+                assertStructuralInvariants(layout);
+            });
         });
     });
 
@@ -666,13 +735,15 @@ describe('layoutEngine', () => {
             const t = tree(persons, rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Deep lineage: increasing layers', () => {
+                assertStructuralInvariants(layout);
 
-            for (let gen = 1; gen < 5; gen++) {
-                const parentNode = nodeById(layout, `gen${gen - 1}`);
-                const childNode = nodeById(layout, `gen${gen}`);
-                expect(childNode.layer).toBe(parentNode.layer + 1);
-            }
+                for (let gen = 1; gen < 5; gen++) {
+                    const parentNode = nodeById(layout, `gen${gen - 1}`);
+                    const childNode = nodeById(layout, `gen${gen}`);
+                    expect(childNode.layer).toBe(parentNode.layer + 1);
+                }
+            });
         });
 
         it('has no overlaps across 5 generations', () => {
@@ -694,7 +765,9 @@ describe('layoutEngine', () => {
             const t = tree(persons, rels);
             const layout = calculateLayout(t, null);
 
-            assertStructuralInvariants(layout);
+            assertWithDebug(layout, 'Deep lineage: 5 gen no overlaps', () => {
+                assertStructuralInvariants(layout);
+            });
         });
     });
 
@@ -705,8 +778,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const spouseConns = layout.connections.filter(c => c.type === 'spouse');
-            expect(spouseConns).toHaveLength(1);
+            assertWithDebug(layout, 'Connections: spouse', () => {
+                const spouseConns = layout.connections.filter(c => c.type === 'spouse');
+                expect(spouseConns).toHaveLength(1);
+            });
         });
 
         it('generates parent-child connections', () => {
@@ -715,8 +790,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const pcConns = layout.connections.filter(c => c.type === 'parent-child');
-            expect(pcConns.length).toBeGreaterThanOrEqual(2);
+            assertWithDebug(layout, 'Connections: parent-child', () => {
+                const pcConns = layout.connections.filter(c => c.type === 'parent-child');
+                expect(pcConns.length).toBeGreaterThanOrEqual(2);
+            });
         });
 
         it('does not duplicate spouse connections', () => {
@@ -725,8 +802,10 @@ describe('layoutEngine', () => {
             const t = tree([h, w], [spouseRel('h', 'w')]);
             const layout = calculateLayout(t, null);
 
-            const spouseConns = layout.connections.filter(c => c.type === 'spouse');
-            expect(spouseConns).toHaveLength(1);
+            assertWithDebug(layout, 'Connections: no duplicate spouse', () => {
+                const spouseConns = layout.connections.filter(c => c.type === 'spouse');
+                expect(spouseConns).toHaveLength(1);
+            });
         });
     });
 
@@ -736,13 +815,15 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, 'child1');
 
-            const child = nodeById(layout, 'child1');
-            const father = nodeById(layout, 'father');
-            const grandpa = nodeById(layout, 'grandpa');
+            assertWithDebug(layout, 'Lineage: ancestors marked', () => {
+                const child = nodeById(layout, 'child1');
+                const father = nodeById(layout, 'father');
+                const grandpa = nodeById(layout, 'grandpa');
 
-            expect(child.isFocusLineage).toBe(true);
-            expect(father.isFocusLineage).toBe(true);
-            expect(grandpa.isFocusLineage).toBe(true);
+                expect(child.isFocusLineage).toBe(true);
+                expect(father.isFocusLineage).toBe(true);
+                expect(grandpa.isFocusLineage).toBe(true);
+            });
         });
 
         it('marks focus person spouses as lineage', () => {
@@ -750,7 +831,9 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, 'father');
 
-            expect(nodeById(layout, 'mother').isFocusLineage).toBe(true);
+            assertWithDebug(layout, 'Lineage: spouses marked', () => {
+                expect(nodeById(layout, 'mother').isFocusLineage).toBe(true);
+            });
         });
 
         it('no lineage marking when no focus', () => {
@@ -758,9 +841,11 @@ describe('layoutEngine', () => {
             const t = tree(fam.allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            for (const node of layout.nodes.values()) {
-                expect(node.isFocusLineage).toBe(false);
-            }
+            assertWithDebug(layout, 'Lineage: none when unfocused', () => {
+                for (const node of layout.nodes.values()) {
+                    expect(node.isFocusLineage).toBe(false);
+                }
+            });
         });
     });
 
@@ -771,8 +856,10 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            const father = nodeById(layout, fam.father.id);
-            expect(father.isCollapsed).toBe(true);
+            assertWithDebug(layout, 'Collapsed: default', () => {
+                const father = nodeById(layout, fam.father.id);
+                expect(father.isCollapsed).toBe(true);
+            });
         });
 
         it('marks leaf nodes as not collapsed', () => {
@@ -781,9 +868,11 @@ describe('layoutEngine', () => {
             const t = tree(allPersons, fam.relationships);
             const layout = calculateLayout(t, null);
 
-            for (const child of fam.children) {
-                expect(nodeById(layout, child.id).isCollapsed).toBe(false);
-            }
+            assertWithDebug(layout, 'Collapsed: leaf nodes', () => {
+                for (const child of fam.children) {
+                    expect(nodeById(layout, child.id).isCollapsed).toBe(false);
+                }
+            });
         });
 
         it('marks expanded nodes as not collapsed', () => {
@@ -794,8 +883,181 @@ describe('layoutEngine', () => {
                 expandedNodeIds: new Set([fam.father.id]),
             });
 
-            const father = nodeById(layout, fam.father.id);
-            expect(father.isCollapsed).toBe(false);
+            assertWithDebug(layout, 'Collapsed: expanded nodes', () => {
+                const father = nodeById(layout, fam.father.id);
+                expect(father.isCollapsed).toBe(false);
+            });
+        });
+    });
+
+    describe('children centered under parents (multi-branch)', () => {
+        /**
+         * Reproduces the bug where the rightmost branch's children are displaced
+         * far to the left instead of being centered under their parents.
+         *
+         * Structure (simplified from real family tree screenshot):
+         *
+         *   Helmut + Jarmila
+         *   ├── Daniel + Alena (spouse)
+         *   │   ├── DanielJr
+         *   │   └── AlenaJr
+         *   ├── Zuzana
+         *   │   └── Martin M
+         *   └── Sylva + Rostislav (spouse)
+         *       ├── MartinP + Sabina (spouse)
+         *       │   ├── Sofie      ← should be under MartinP+Sabina, NOT far left
+         *       │   └── Mia        ← same
+         *       └── SabinaJr
+         */
+        function multiBranchFamily() {
+            // Gen 0 — focus couple
+            const helmut = person({ id: 'helmut', firstName: 'Helmut', gender: 'Male' });
+            const jarmila = person({ id: 'jarmila', firstName: 'Jarmila', gender: 'Female' });
+
+            // Gen 1 — children of Helmut+Jarmila + their spouses
+            const daniel = person({ id: 'daniel', firstName: 'Daniel', gender: 'Male' });
+            const alena = person({ id: 'alena', firstName: 'Alena', gender: 'Female' });
+            const zuzana = person({ id: 'zuzana', firstName: 'Zuzana', gender: 'Female' });
+            const sylva = person({ id: 'sylva', firstName: 'Sylva', gender: 'Female' });
+            const rostislav = person({ id: 'rostislav', firstName: 'Rostislav', gender: 'Male' });
+
+            // Gen 2 — grandchildren
+            const danielJr = person({ id: 'danielJr', firstName: 'DanielJr', gender: 'Male' });
+            const alenaJr = person({ id: 'alenaJr', firstName: 'AlenaJr', gender: 'Female' });
+            const martinM = person({ id: 'martinM', firstName: 'MartinM', gender: 'Male' });
+            const martinP = person({ id: 'martinP', firstName: 'MartinP', gender: 'Male' });
+            const sabina = person({ id: 'sabina', firstName: 'Sabina', gender: 'Female' });
+            const sabinaJr = person({ id: 'sabinaJr', firstName: 'SabinaJr', gender: 'Female' });
+
+            // Gen 3 — great-grandchildren (children of MartinP + Sabina)
+            const sofie = person({ id: 'sofie', firstName: 'Sofie', gender: 'Female' });
+            const mia = person({ id: 'mia', firstName: 'Mia', gender: 'Female' });
+
+            const rels = [
+                // Helmut + Jarmila
+                spouseRel('helmut', 'jarmila'),
+
+                // Their children
+                parentRel('daniel', 'helmut'), parentRel('daniel', 'jarmila'),
+                parentRel('zuzana', 'helmut'), parentRel('zuzana', 'jarmila'),
+                parentRel('sylva', 'helmut'), parentRel('sylva', 'jarmila'),
+
+                // Daniel + Alena → DanielJr, AlenaJr
+                spouseRel('daniel', 'alena'),
+                parentRel('danielJr', 'daniel'), parentRel('danielJr', 'alena'),
+                parentRel('alenaJr', 'daniel'), parentRel('alenaJr', 'alena'),
+
+                // Zuzana → MartinM
+                parentRel('martinM', 'zuzana'),
+
+                // Sylva + Rostislav → MartinP, SabinaJr
+                spouseRel('sylva', 'rostislav'),
+                parentRel('martinP', 'sylva'), parentRel('martinP', 'rostislav'),
+                parentRel('sabinaJr', 'sylva'), parentRel('sabinaJr', 'rostislav'),
+
+                // MartinP + Sabina → Sofie, Mia
+                spouseRel('martinP', 'sabina'),
+                parentRel('sofie', 'martinP'), parentRel('sofie', 'sabina'),
+                parentRel('mia', 'martinP'), parentRel('mia', 'sabina'),
+            ];
+
+            const allPersons = [
+                helmut, jarmila,
+                daniel, alena, zuzana, sylva, rostislav,
+                danielJr, alenaJr, martinM, martinP, sabina, sabinaJr,
+                sofie, mia,
+            ];
+
+            return { allPersons, rels, helmut, martinP, sabina, sofie, mia };
+        }
+
+        function parentsCenterX(layout: TreeLayout, ...parentIds: string[]): number {
+            const xs = parentIds.map(id => {
+                const n = nodeById(layout, id);
+                return n.position.x + n.width / 2;
+            });
+            return (Math.min(...xs) + Math.max(...xs)) / 2;
+        }
+
+        function childrenCenterX(layout: TreeLayout, ...childIds: string[]): number {
+            const xs = childIds.map(id => {
+                const n = nodeById(layout, id);
+                return n.position.x + n.width / 2;
+            });
+            return (Math.min(...xs) + Math.max(...xs)) / 2;
+        }
+
+        it('centers great-grandchildren under their parents in multi-branch tree', () => {
+            const { allPersons, rels, martinP, sabina, sofie, mia } = multiBranchFamily();
+            const t = tree(allPersons, rels);
+            const layout = calculateLayout(t, null);
+
+            assertWithDebug(layout, 'Multi-Branch: great-grandchildren centering', () => {
+                assertStructuralInvariants(layout);
+
+                const pCenter = parentsCenterX(layout, martinP.id, sabina.id);
+                const cCenter = childrenCenterX(layout, sofie.id, mia.id);
+
+                expect(
+                    Math.abs(pCenter - cCenter),
+                    `Sofie+Mia center (${cCenter}) should be near MartinP+Sabina center (${pCenter}), ` +
+                    `but offset is ${Math.abs(pCenter - cCenter)}px`
+                ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+            });
+        });
+
+        it('centers great-grandchildren under parents when focused on ancestor', () => {
+            const { allPersons, rels, helmut, martinP, sabina, sofie, mia } = multiBranchFamily();
+            const t = tree(allPersons, rels);
+            const expandAll = new Set(allPersons.map(p => p.id));
+            const layout = calculateLayout(t, helmut.id, { expandedNodeIds: expandAll });
+
+            assertWithDebug(layout, 'Multi-Branch (focused): great-grandchildren centering', () => {
+                assertStructuralInvariants(layout);
+
+                const pCenter = parentsCenterX(layout, martinP.id, sabina.id);
+                const cCenter = childrenCenterX(layout, sofie.id, mia.id);
+
+                expect(
+                    Math.abs(pCenter - cCenter),
+                    `Sofie+Mia center (${cCenter}) should be near MartinP+Sabina center (${pCenter}), ` +
+                    `but offset is ${Math.abs(pCenter - cCenter)}px`
+                ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+            });
+        });
+
+        it('centers all family branches children under their respective parents', () => {
+            const { allPersons, rels } = multiBranchFamily();
+            const t = tree(allPersons, rels);
+            const layout = calculateLayout(t, null);
+
+            assertWithDebug(layout, 'Multi-Branch: all branches centering', () => {
+                assertStructuralInvariants(layout);
+
+            // Daniel+Alena branch
+            const danielParentCenter = parentsCenterX(layout, 'daniel', 'alena');
+            const danielChildCenter = childrenCenterX(layout, 'danielJr', 'alenaJr');
+            expect(
+                Math.abs(danielParentCenter - danielChildCenter),
+                `DanielJr+AlenaJr not centered under Daniel+Alena (offset=${Math.abs(danielParentCenter - danielChildCenter)}px)`
+            ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+
+            // Sylva+Rostislav branch
+            const sylvaParentCenter = parentsCenterX(layout, 'sylva', 'rostislav');
+            const sylvaChildCenter = childrenCenterX(layout, 'martinP', 'sabinaJr');
+            expect(
+                Math.abs(sylvaParentCenter - sylvaChildCenter),
+                `MartinP+SabinaJr not centered under Sylva+Rostislav (offset=${Math.abs(sylvaParentCenter - sylvaChildCenter)}px)`
+            ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+
+            // MartinP+Sabina branch
+            const martinParentCenter = parentsCenterX(layout, 'martinP', 'sabina');
+            const martinChildCenter = childrenCenterX(layout, 'sofie', 'mia');
+            expect(
+                Math.abs(martinParentCenter - martinChildCenter),
+                `Sofie+Mia not centered under MartinP+Sabina (offset=${Math.abs(martinParentCenter - martinChildCenter)}px)`
+            ).toBeLessThan(DEFAULT_LAYOUT_CONFIG.nodeWidth);
+            });
         });
     });
 

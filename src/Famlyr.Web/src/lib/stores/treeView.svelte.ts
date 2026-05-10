@@ -1,6 +1,6 @@
 import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
 import type { TreeLayout, Viewport, TreeNode, FoldState } from '$lib/types/tree';
-import { ZOOM_MAX } from '$lib/types/tree';
+import { ZOOM_MIN, ZOOM_MAX } from '$lib/types/tree';
 
 const ANIMATION_DURATION = 300;
 
@@ -169,7 +169,7 @@ function createTreeViewState() {
         const zoomY = viewport.height / groupHeight;
         const targetZoom = Math.min(zoomX, zoomY) * 0.9;
 
-        const clampedZoom = Math.max(fitZoom, Math.min(ZOOM_MAX, targetZoom));
+        const clampedZoom = Math.max(Math.min(fitZoom, ZOOM_MIN), Math.min(ZOOM_MAX, targetZoom));
 
         const centerX = (bounds.minX + bounds.maxX) / 2;
         const centerY = (bounds.minY + bounds.maxY) / 2;
@@ -219,7 +219,7 @@ function createTreeViewState() {
         },
 
         zoom(newZoom: number, centerX?: number, centerY?: number) {
-            const minZoom = fitZoom;
+            const minZoom = Math.min(fitZoom, ZOOM_MIN);
             const clampedZoom = Math.max(minZoom, Math.min(ZOOM_MAX, newZoom));
             const zoomRatio = clampedZoom / viewport.zoom;
 
