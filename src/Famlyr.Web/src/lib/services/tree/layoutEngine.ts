@@ -1798,6 +1798,7 @@ function nudgeParentsTowardsChildren(
             const spouses = (maps.spouseOf.get(nodeId) ?? [])
                 .filter(sid => visibleNodeIds.has(sid) && layerMap.get(sid) === layer);
             const coParent = spouses.find(sid => {
+                if (processed.has(sid)) return false;
                 const theirChildren = maps.parentOf.get(sid) ?? [];
                 return children.some(cid => theirChildren.includes(cid));
             });
@@ -1876,46 +1877,35 @@ function ensureSpousesAdjacent(
         for (const nodeId of nodesInLayer) {
             if (processed.has(nodeId)) continue;
 
-            const spouses = (maps.spouseOf.get(nodeId) ?? [])
-                .filter(sid => visibleNodeIds.has(sid) && nodesInLayer.includes(sid));
+            // BFS to find all transitively connected spouses in this layer
+            const group: string[] = [];
+            const queue = [nodeId];
+            while (queue.length > 0) {
+                const current = queue.pop()!;
+                if (processed.has(current)) continue;
+                processed.add(current);
+                group.push(current);
 
-            if (spouses.length === 0) continue;
+                const spouses = (maps.spouseOf.get(current) ?? [])
+                    .filter(sid => visibleNodeIds.has(sid) && nodesInLayer.includes(sid) && !processed.has(sid));
+                queue.push(...spouses);
+            }
 
-            for (const spouseId of spouses) {
-                if (processed.has(spouseId)) continue;
+            if (group.length <= 1) continue;
 
-                const nodeX = xPositions.get(nodeId) ?? 0;
-                const spouseX = xPositions.get(spouseId) ?? 0;
-                const expectedGap = config.nodeWidth + config.spouseGap;
-                const actualGap = Math.abs(spouseX - nodeX);
+            group.sort((a, b) => (xPositions.get(a) ?? 0) - (xPositions.get(b) ?? 0));
 
-                // If spouses are already close enough, skip
-                if (actualGap <= expectedGap + config.siblingGap) {
-                    processed.add(nodeId);
-                    processed.add(spouseId);
-                    continue;
-                }
+            const xs = group.map(id => xPositions.get(id) ?? 0);
+            const totalSpan = xs[xs.length - 1] - xs[0];
+            const expectedSpan = (group.length - 1) * (config.nodeWidth + config.spouseGap);
 
-                // Move the spouse that's further from the center to be next to the other
-                // This minimizes disruption to the layout
-                if (Math.abs(nodeX) <= Math.abs(spouseX)) {
-                    // Move spouse next to node
-                    if (spouseX > nodeX) {
-                        xPositions.set(spouseId, nodeX + config.nodeWidth + config.spouseGap);
-                    } else {
-                        xPositions.set(spouseId, nodeX - config.nodeWidth - config.spouseGap);
-                    }
-                } else {
-                    // Move node next to spouse
-                    if (nodeX > spouseX) {
-                        xPositions.set(nodeId, spouseX + config.nodeWidth + config.spouseGap);
-                    } else {
-                        xPositions.set(nodeId, spouseX - config.nodeWidth - config.spouseGap);
-                    }
-                }
+            if (totalSpan <= expectedSpan + config.siblingGap) continue;
 
-                processed.add(nodeId);
-                processed.add(spouseId);
+            const centerX = xs.reduce((a, b) => a + b, 0) / xs.length;
+            const startX = centerX - expectedSpan / 2;
+
+            for (let i = 0; i < group.length; i++) {
+                xPositions.set(group[i], startX + i * (config.nodeWidth + config.spouseGap));
             }
         }
     }
@@ -1972,6 +1962,8 @@ function calculatePositions(
     resolveLayerCollisions(xPositions, layerMap, visibleNodeIds, config);
 
     nudgeParentsTowardsChildren(xPositions, layerMap, maps, visibleNodeIds, config);
+
+    resolveLayerCollisions(xPositions, layerMap, visibleNodeIds, config);
 
     positionFamilyNodes(familyNodes, xPositions, layerMap, config);
 
