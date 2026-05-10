@@ -2336,3 +2336,25 @@ export function getFocusLineageIds(
     const lineage = markFocusLineage(focusPersonId, maps);
     return Array.from(lineage);
 }
+
+export const _testInternals = {
+    buildRelationshipMaps,
+    assignLayers,
+    buildClusterTree,
+    calculateClusterWidths,
+    assignClusterPositions,
+    resolveLayerCollisions,
+    centerChildrenUnderParents,
+    centerAncestorsOverDescendants,
+    minimizeCrossingsImproved,
+    ensureSpousesAdjacent,
+    nudgeParentsTowardsChildren,
+    determineVisibleNodes,
+    buildConnections,
+    calculateDescendantCounts,
+    findCoParents,
+    countCrossings,
+    countCrossingsOptimized,
+    calculatePositions,
+    markFocusLineage,
+};
