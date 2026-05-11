@@ -4,7 +4,7 @@ import type { TreeLayout, TreeNode, LayoutConfig } from '$lib/types/tree';
 import { DEFAULT_LAYOUT_CONFIG } from '$lib/types/tree';
 import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
 import { person, parentRel, spouseRel, tree, nuclearFamily, threeGenerations, resetIds } from './treeBuilder';
-import { assertWithDebug, printLayout } from './testUtils';
+import { assertWithDebug } from './testUtils';
 import realTreeData from './realTreeData.json';
 
 beforeEach(() => {
@@ -1254,6 +1254,140 @@ describe('layoutEngine', () => {
             expect(visibleNodes(layout)).toHaveLength(0);
             expect(layout.bounds.width).toBeGreaterThan(0);
             expect(layout.connections).toHaveLength(0);
+        });
+    });
+
+    describe('grandparent centering', () => {
+        it('centers grandparents over their descendants', () => {
+            const granddad = person({ id: 'granddad', firstName: 'Granddad', gender: 'Male' });
+            const grandmom = person({ id: 'grandmom', firstName: 'Grandmom', gender: 'Female' });
+            const dad = person({ id: 'dad', firstName: 'Dad', gender: 'Male' });
+            const mom = person({ id: 'mom', firstName: 'Mom', gender: 'Female' });
+            const dad2 = person({ id: 'dad2', firstName: 'Dad2', gender: 'Male' });
+            const mom2 = person({ id: 'mom2', firstName: 'Mom2', gender: 'Female' });
+            const child1 = person({ id: 'child1', firstName: 'Child1' });
+            const child2 = person({ id: 'child2', firstName: 'Child2' });
+            const grandchild = person({ id: 'grandchild', firstName: 'Grandchild' });
+
+            const rels = [
+                spouseRel('dad', 'mom'),
+                parentRel('mom', 'granddad'),
+                parentRel('mom', 'grandmom'),
+                parentRel('dad2', 'granddad'),
+                parentRel('dad2', 'grandmom'),
+                parentRel('child1', 'dad'),
+                parentRel('child1', 'mom'),
+                parentRel('child2', 'dad2'),
+                parentRel('child2', 'mom2'),
+                parentRel('grandchild', 'child1'),
+                parentRel('grandchild', 'child2'),
+            ];
+
+            const t = tree([granddad, grandmom, dad, mom, dad2, mom2, child1, child2, grandchild], rels);
+            const layout = calculateLayout(t, null);
+
+            assertWithDebug(layout, 'Grandparent centering', () => {
+                assertStructuralInvariants(layout);
+
+                const gpCenter = parentsCenterX(layout, 'granddad', 'grandmom');
+                const childrenOfGP = childrenCenterX(layout, 'mom', 'dad2');
+                expect(
+                    Math.abs(gpCenter - childrenOfGP),
+                    `Grandparents not centered over their children (gp=${gpCenter}, children=${childrenOfGP}, offset=${Math.abs(gpCenter - childrenOfGP)}px)`
+                ).toBeLessThanOrEqual(5);
+            });
+        });
+    });
+
+    describe('bonding categories', () => {
+        it('spouse bond produces tighter gap than co-parent', () => {
+            const dad = person({ id: 'dad', firstName: 'Dad', gender: 'Male' });
+            const mom = person({ id: 'mom', firstName: 'Mom', gender: 'Female' });
+            const dad2 = person({ id: 'dad2', firstName: 'Dad2', gender: 'Male' });
+            const mom2 = person({ id: 'mom2', firstName: 'Mom2', gender: 'Female' });
+            const child1 = person({ id: 'child1', firstName: 'Child1' });
+            const child2 = person({ id: 'child2', firstName: 'Child2' });
+
+            const rels = [
+                spouseRel('dad', 'mom'),
+                parentRel('child1', 'dad'),
+                parentRel('child1', 'mom'),
+                parentRel('child2', 'dad2'),
+                parentRel('child2', 'mom2'),
+            ];
+
+            const t = tree([dad, mom, dad2, mom2, child1, child2], rels);
+            const layout = calculateLayout(t, null);
+
+            assertWithDebug(layout, 'Bond gaps', () => {
+                assertStructuralInvariants(layout);
+
+                const dadNode = nodeById(layout, 'dad');
+                const momNode = nodeById(layout, 'mom');
+                const dad2Node = nodeById(layout, 'dad2');
+                const mom2Node = nodeById(layout, 'mom2');
+
+                const spouseGap = Math.abs(dadNode.position.x - momNode.position.x) - DEFAULT_LAYOUT_CONFIG.nodeWidth;
+                const coParentGap = Math.abs(dad2Node.position.x - mom2Node.position.x) - DEFAULT_LAYOUT_CONFIG.nodeWidth;
+
+                expect(
+                    spouseGap,
+                    'Spouse gap (' + spouseGap + ') should be <= co-parent gap (' + coParentGap + ')'
+                ).toBeLessThanOrEqual(coParentGap);
+            });
+        });
+
+        it('getBondType returns correct bond types', () => {
+            const grandpa = person({ id: 'grandpa', firstName: 'Grandpa', gender: 'Male' });
+            const grandma = person({ id: 'grandma', firstName: 'Grandma', gender: 'Female' });
+            const dad = person({ id: 'dad', firstName: 'Dad', gender: 'Male' });
+            const mom = person({ id: 'mom', firstName: 'Mom', gender: 'Female' });
+            const uncle = person({ id: 'uncle', firstName: 'Uncle', gender: 'Male' });
+            const child = person({ id: 'child', firstName: 'Child' });
+
+            const rels = [
+                spouseRel('dad', 'mom'),
+                parentRel('dad', 'grandpa'),
+                parentRel('dad', 'grandma'),
+                parentRel('uncle', 'grandpa'),
+                parentRel('uncle', 'grandma'),
+                parentRel('child', 'dad'),
+                parentRel('child', 'mom'),
+            ];
+
+            const maps = _testInternals.buildRelationshipMaps(rels);
+            const visible = new Set(['grandpa', 'grandma', 'dad', 'mom', 'uncle', 'child']);
+
+            expect(_testInternals.getBondType('dad', 'mom', maps, visible)).toBe('spouse');
+            expect(_testInternals.getBondType('dad', 'mom', maps, visible)).toBe('spouse');
+            expect(_testInternals.getBondType('grandpa', 'grandma', maps, visible)).toBe('coparent');
+            expect(_testInternals.getBondType('dad', 'uncle', maps, visible)).toBe('sibling');
+            expect(_testInternals.getBondType('dad', 'grandpa', maps, visible)).toBe(null);
+        });
+
+        it('siblings are placed closer than unrelated persons', () => {
+            const grandpa = person({ id: 'grandpa', firstName: 'Grandpa', gender: 'Male' });
+            const dad = person({ id: 'dad', firstName: 'Dad', gender: 'Male' });
+            const uncle = person({ id: 'uncle', firstName: 'Uncle', gender: 'Male' });
+            const stranger = person({ id: 'stranger', firstName: 'Stranger', gender: 'Male' });
+            const child = person({ id: 'child', firstName: 'Child' });
+            const cousin = person({ id: 'cousin', firstName: 'Cousin' });
+            const strangerKid = person({ id: 'strangerKid', firstName: 'StrangerKid' });
+
+            const rels = [
+                parentRel('dad', 'grandpa'),
+                parentRel('uncle', 'grandpa'),
+                parentRel('child', 'dad'),
+                parentRel('cousin', 'uncle'),
+                parentRel('strangerKid', 'stranger'),
+            ];
+
+            const t = tree([grandpa, dad, uncle, stranger, child, cousin, strangerKid], rels);
+            const layout = calculateLayout(t, null);
+
+            assertWithDebug(layout, 'Sibling vs unrelated spacing', () => {
+                assertStructuralInvariants(layout);
+            });
         });
     });
 });
