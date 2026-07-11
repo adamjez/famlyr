@@ -1,0 +1,85 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`layout golden snapshots > matches snapshot: couple 1`] = `
+"crossings: 0
+bounds: x=[-100..430] w=530 h=280
+L0: Husband@0  Wife@170"
+`;
+
+exports[`layout golden snapshots > matches snapshot: four-generations 1`] = `
+"crossings: 2
+bounds: x=[-70..660] w=730 h=730
+L0: G1a@130  G1b@300
+L1: G2a@30  G2b@200  G2sib@400
+L2: G3a@115  G3b@285
+L3: G4a@100  G4b@300
+family-nodes: (195,265) (280,415) (295,115)"
+`;
+
+exports[`layout golden snapshots > matches snapshot: half-siblings 1`] = `
+"crossings: 3
+bounds: x=[-70..690] w=760 h=430
+L0: Father@45  MotherA@215  MotherB@415
+L1: ChildA1@30  ChildA2@230  ChildB1@430
+family-nodes: (210,115) (310,115)"
+`;
+
+exports[`layout golden snapshots > matches snapshot: nuclear-2 1`] = `
+"crossings: 1
+bounds: x=[-85..475] w=560 h=430
+L0: Father@30  Mother@200
+L1: Child1@15  Child2@215
+family-nodes: (195,115)"
+`;
+
+exports[`layout golden snapshots > matches snapshot: nuclear-5 1`] = `
+"crossings: 10
+bounds: x=[-85..1075] w=1160 h=430
+L0: Father@330  Mother@500
+L1: Child1@15  Child2@215  Child3@415  Child4@615  Child5@815
+family-nodes: (495,115)"
+`;
+
+exports[`layout golden snapshots > matches snapshot: real-tree-33 1`] = `
+"crossings: 25
+bounds: x=[705..3435] w=2730 h=880
+L-2: Martin@1305  Adam@1505  Simona@1735  Markéta@1935  Pavel@2380  Jana@2550  Jiří@2750  Ivana@2920
+L-1: Lucie@1505  Filip@1675  Karel@2405  Eva@2575
+L0: Marie@805  Matěj@1205  Tereza@1405  Jan@1805  Jakub@2005  Anna@2175  Ondřej@2375  Adéla@2775  Petr@2975  Lukáš@3175
+L1: Vojtěch@820  Hana@990  Nela@1190  Tomáš@1390  David@1633  Erik@1833  Klára@2003  Marek@2245  Ema@2445
+L2: Barbora@1311  Petra@1511
+family-nodes: (1085,115) (1491,265) (1600,-185) (1670,-35) (1800,-185) (2070,115) (2545,-185) (2570,-35) (2655,115) (2915,-185)"
+`;
+
+exports[`layout golden snapshots > matches snapshot: remarriage-with-grandkids 1`] = `
+"crossings: 2
+bounds: x=[125..1055] w=930 h=730
+L0: Grandma@225  Grandpa@395
+L1: Father@310  Wife1@480  Wife2@680
+L2: Son@395  Daughter@595  SonWife@795
+L3: Grandkid1@495  Grandkid2@695
+family-nodes: (390,115) (475,265) (575,265) (675,415)"
+`;
+
+exports[`layout golden snapshots > matches snapshot: single 1`] = `
+"crossings: 0
+bounds: x=[-100..260] w=360 h=280
+L0: Solo@0"
+`;
+
+exports[`layout golden snapshots > matches snapshot: three-generations 1`] = `
+"crossings: 2
+bounds: x=[-85..660] w=745 h=580
+L0: Grandma@130  Grandpa@300
+L1: Father@30  Mother@200  Uncle@400
+L2: Child1@15  Child2@215
+family-nodes: (195,265) (295,115)"
+`;
+
+exports[`layout golden snapshots > matches snapshot: two-unrelated-families 1`] = `
+"crossings: 0
+bounds: x=[-85..845] w=930 h=430
+L0: Dad@15  Mom@185  Dad2@415  Mom2@585
+L1: Child1@100  Child2@500
+family-nodes: (180,115) (580,115)"
+`;
