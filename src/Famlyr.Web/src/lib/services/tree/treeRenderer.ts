@@ -42,7 +42,6 @@ export class TreeRenderer {
     private selectedNodeId: string | null = null;
     private highlightedParentIds: Set<string> = new Set();
     private highlightedChildIds: Set<string> = new Set();
-    private highlightedSpouseIds: Set<string> = new Set();
     private photoTextures: Map<string, Texture> = new Map();
     private photoContainers: Map<string, Container> = new Map();
     private currentLOD: LODLevel = 3;
@@ -176,8 +175,11 @@ export class TreeRenderer {
                 highlightPass.push(() => {
                     // parent trunks: highlight the parents that are on the lineage,
                     // plus the selected node's spouses (to show the couple link)
+                    // Highlight the trunk of every parent on the lineage; when the
+                    // selected node is a parent here, highlight all co-parents too
+                    // (they are its partners), so the link to a co-parent shows.
                     for (const p of parents) {
-                        const hl = this.isLineage(p.id) || (selectedIsParent && this.highlightedSpouseIds.has(p.id));
+                        const hl = this.isLineage(p.id) || selectedIsParent;
                         if (hl) this.vline(graphics, p.x, p.y, busY, true);
                     }
                     // marriage bus links the couple — highlight when the union is on
@@ -639,7 +641,6 @@ export class TreeRenderer {
         this.selectedNodeId = nodeId;
         this.highlightedParentIds.clear();
         this.highlightedChildIds.clear();
-        this.highlightedSpouseIds.clear();
 
         if (nodeId && this.layout) {
             const selectedNode = this.layout.nodes.get(nodeId);
@@ -652,7 +653,6 @@ export class TreeRenderer {
                 };
                 addVisible(selectedNode.parentIds, this.highlightedParentIds);
                 addVisible(selectedNode.childIds, this.highlightedChildIds);
-                addVisible(selectedNode.spouseIds, this.highlightedSpouseIds);
             }
         }
 
