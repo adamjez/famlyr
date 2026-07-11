@@ -42,6 +42,7 @@ export class TreeRenderer {
     private selectedNodeId: string | null = null;
     private highlightedParentIds: Set<string> = new Set();
     private highlightedChildIds: Set<string> = new Set();
+    private highlightedSpouseIds: Set<string> = new Set();
     private photoTextures: Map<string, Texture> = new Map();
     private photoContainers: Map<string, Container> = new Map();
     private currentLOD: LODLevel = 3;
@@ -109,89 +110,93 @@ export class TreeRenderer {
         }
     }
 
+    private hline(g: Graphics, x1: number, x2: number, y: number, hl: boolean): void {
+        if (Math.abs(x1 - x2) < 0.5) return;
+        g.moveTo(x1, y);
+        g.lineTo(x2, y);
+        g.stroke({ width: hl ? 3 : 2, color: hl ? COLORS.connectionHighlight : COLORS.connectionLine });
+    }
+
+    private vline(g: Graphics, x: number, y1: number, y2: number, hl: boolean): void {
+        if (Math.abs(y1 - y2) < 0.5) return;
+        g.moveTo(x, y1);
+        g.lineTo(x, y2);
+        g.stroke({ width: hl ? 3 : 2, color: hl ? COLORS.connectionHighlight : COLORS.connectionLine });
+    }
+
     private drawFamilyNodeConnections(graphics: Graphics, layout: TreeLayout): void {
+        // Draw all base connectors first, then overlay highlighted lineage segments
+        // on top so the highlight is never hidden behind a later base stroke.
+        const highlightPass: Array<() => void> = [];
+
         for (const familyNode of layout.familyNodes.values()) {
-            const parentCenters = familyNode.parentIds
+            const parents = familyNode.parentIds
                 .map(id => {
                     const node = layout.nodes.get(id);
                     if (!node || !node.isVisible) return null;
-                    return {
-                        x: node.position.x + node.width / 2,
-                        y: node.position.y + node.height
-                    };
+                    return { id, x: node.position.x + node.width / 2, y: node.position.y + node.height };
                 })
-                .filter((p): p is { x: number; y: number } => p !== null);
+                .filter((p): p is { id: string; x: number; y: number } => p !== null);
+            if (parents.length === 0) continue;
 
-            if (parentCenters.length === 0) continue;
-
-            const familyX = familyNode.position.x;
-            const familyY = familyNode.position.y;
-
-            if (parentCenters.length === 2) {
-                const [p1, p2] = parentCenters;
-                const lineY = p1.y + (familyY - p1.y) * 0.3;
-
-                graphics.moveTo(p1.x, p1.y);
-                graphics.lineTo(p1.x, lineY);
-                graphics.stroke({ width: 2, color: COLORS.connectionLine });
-
-                graphics.moveTo(p2.x, p2.y);
-                graphics.lineTo(p2.x, lineY);
-                graphics.stroke({ width: 2, color: COLORS.connectionLine });
-
-                graphics.moveTo(p1.x, lineY);
-                graphics.lineTo(p2.x, lineY);
-                graphics.stroke({ width: 2, color: COLORS.connectionLine });
-
-                const midX = (p1.x + p2.x) / 2;
-                graphics.moveTo(midX, lineY);
-                graphics.lineTo(familyX, familyY);
-                graphics.stroke({ width: 2, color: COLORS.connectionLine });
-            } else {
-                graphics.moveTo(parentCenters[0].x, parentCenters[0].y);
-                graphics.lineTo(familyX, familyY);
-                graphics.stroke({ width: 2, color: COLORS.connectionLine });
-            }
-
-            const childCenters = familyNode.childIds
+            const children = familyNode.childIds
                 .map(id => {
                     const node = layout.nodes.get(id);
                     if (!node || !node.isVisible) return null;
-                    return {
-                        id,
-                        x: node.position.x + node.width / 2,
-                        y: node.position.y
-                    };
+                    return { id, x: node.position.x + node.width / 2, y: node.position.y };
                 })
                 .filter((c): c is { id: string; x: number; y: number } => c !== null);
+            if (children.length === 0) continue;
 
-            if (childCenters.length === 0) continue;
+            const familyY = familyNode.position.y;
+            const trunkX = parents.reduce((s, p) => s + p.x, 0) / parents.length;
+            const parentBottom = Math.max(...parents.map(p => p.y));
+            const busY = parentBottom + (familyY - parentBottom) * 0.35;
 
-            const minChildX = Math.min(...childCenters.map(c => c.x));
-            const maxChildX = Math.max(...childCenters.map(c => c.x));
+            const childXs = children.map(c => c.x);
+            const railMinX = Math.min(trunkX, ...childXs);
+            const railMaxX = Math.max(trunkX, ...childXs);
 
-            const railMinX = Math.min(familyX, minChildX);
-            const railMaxX = Math.max(familyX, maxChildX);
+            const parentOnPath = parents.filter(p => this.isLineage(p.id));
+            const childOnPath = children.filter(c => this.isLineage(c.id));
+            const onPath = parentOnPath.length > 0 && childOnPath.length > 0;
+            const selectedIsParent = parents.some(p => p.id === this.selectedNodeId);
 
-            if (childCenters.length > 1 || Math.abs(familyX - childCenters[0].x) > 1) {
-                graphics.moveTo(railMinX, familyY);
-                graphics.lineTo(railMaxX, familyY);
-                graphics.stroke({ width: 2, color: COLORS.connectionLine });
+            // ── Base: orthogonal marriage bus + trunk + rail + child drops ──
+            for (const p of parents) this.vline(graphics, p.x, p.y, busY, false);
+            if (parents.length === 2) {
+                this.hline(graphics, parents[0].x, parents[1].x, busY, false);
             }
+            this.vline(graphics, trunkX, busY, familyY, false);
+            this.hline(graphics, railMinX, railMaxX, familyY, false);
+            for (const c of children) this.vline(graphics, c.x, familyY, c.y, false);
 
-            for (const child of childCenters) {
-                const isHighlighted =
-                    this.highlightedChildIds.has(child.id) ||
-                    familyNode.parentIds.some(pid => this.highlightedParentIds.has(pid));
-
-                const lineColor = isHighlighted ? COLORS.connectionHighlight : COLORS.connectionLine;
-                const lineWidth = isHighlighted ? 3 : 2;
-
-                graphics.moveTo(child.x, familyY);
-                graphics.lineTo(child.x, child.y);
-                graphics.stroke({ width: lineWidth, color: lineColor });
+            // ── Highlight overlay: the lineage path through this union ──
+            if (onPath || selectedIsParent) {
+                highlightPass.push(() => {
+                    // parent trunks: highlight the parents that are on the lineage,
+                    // plus the selected node's spouses (to show the couple link)
+                    for (const p of parents) {
+                        const hl = this.isLineage(p.id) || (selectedIsParent && this.highlightedSpouseIds.has(p.id));
+                        if (hl) this.vline(graphics, p.x, p.y, busY, true);
+                    }
+                    // marriage bus links the couple — highlight when the union is on
+                    // the path or the selected node is one of the parents
+                    if (parents.length === 2 && (onPath || selectedIsParent)) {
+                        this.hline(graphics, parents[0].x, parents[1].x, busY, true);
+                    }
+                    if (onPath) {
+                        this.vline(graphics, trunkX, busY, familyY, true);
+                        for (const c of childOnPath) {
+                            this.hline(graphics, trunkX, c.x, familyY, true); // rail segment
+                            this.vline(graphics, c.x, familyY, c.y, true);     // drop
+                        }
+                    }
+                });
             }
         }
+
+        for (const draw of highlightPass) draw();
     }
 
     private drawSpouseConnection(graphics: Graphics, connection: TreeConnection, layout: TreeLayout): void {
@@ -214,9 +219,10 @@ export class TreeRenderer {
         const x1 = from.position.x + from.width;
         const x2 = to.position.x;
 
+        const hl = this.selectedNodeId === from.id || this.selectedNodeId === to.id;
         graphics.moveTo(x1, y);
         graphics.lineTo(x2, y);
-        graphics.stroke({ width: 2, color: COLORS.connectionLine });
+        graphics.stroke({ width: hl ? 3 : 2, color: hl ? COLORS.connectionHighlight : COLORS.connectionLine });
     }
 
     private drawCoParentConnection(graphics: Graphics, connection: TreeConnection, layout: TreeLayout): void {
@@ -239,6 +245,7 @@ export class TreeRenderer {
         const x2 = to.position.x;
 
         // Draw dashed line for co-parents (visually distinct from spouse solid line)
+        const hl = this.selectedNodeId === from.id || this.selectedNodeId === to.id;
         const dashLength = 6;
         const gapLength = 4;
         let currentX = x1;
@@ -247,7 +254,7 @@ export class TreeRenderer {
             const endX = Math.min(currentX + dashLength, x2);
             graphics.moveTo(currentX, y);
             graphics.lineTo(endX, y);
-            graphics.stroke({ width: 2, color: COLORS.connectionLine });
+            graphics.stroke({ width: hl ? 3 : 2, color: hl ? COLORS.connectionHighlight : COLORS.connectionLine });
             currentX = endX + gapLength;
         }
     }
@@ -632,22 +639,33 @@ export class TreeRenderer {
         this.selectedNodeId = nodeId;
         this.highlightedParentIds.clear();
         this.highlightedChildIds.clear();
+        this.highlightedSpouseIds.clear();
 
         if (nodeId && this.layout) {
             const selectedNode = this.layout.nodes.get(nodeId);
             if (selectedNode) {
-                for (const parentId of selectedNode.parentIds) {
-                    this.highlightedParentIds.add(parentId);
-                }
-                for (const childId of selectedNode.childIds) {
-                    this.highlightedChildIds.add(childId);
-                }
+                // Direct relatives only: immediate parents, children and spouses.
+                const addVisible = (ids: string[], out: Set<string>) => {
+                    for (const id of ids) {
+                        if (this.layout!.nodes.get(id)?.isVisible) out.add(id);
+                    }
+                };
+                addVisible(selectedNode.parentIds, this.highlightedParentIds);
+                addVisible(selectedNode.childIds, this.highlightedChildIds);
+                addVisible(selectedNode.spouseIds, this.highlightedSpouseIds);
             }
         }
 
         if (this.layout) {
             this.render(this.layout);
         }
+    }
+
+    /** True when an id is the selection or one of its direct highlighted relatives. */
+    private isLineage(id: string): boolean {
+        return id === this.selectedNodeId
+            || this.highlightedParentIds.has(id)
+            || this.highlightedChildIds.has(id);
     }
 
     updateViewport(viewport: Viewport): void {
