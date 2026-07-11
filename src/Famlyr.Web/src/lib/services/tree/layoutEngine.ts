@@ -385,7 +385,14 @@ function positionFamilyNodes(
 
         if (parentXs.length === 0) continue;
 
-        const centerX = parentXs.reduce((a, b) => a + b, 0) / parentXs.length
+        // Centre the connector node over the CHILDREN so drop lines fall straight;
+        // fall back to the parents when children aren't positioned.
+        const childXs = familyNode.childIds
+            .map(id => xPositions.get(id))
+            .filter((x): x is number => x !== undefined);
+        const anchorXs = childXs.length > 0 ? childXs : parentXs;
+
+        const centerX = anchorXs.reduce((a, b) => a + b, 0) / anchorXs.length
             + config.nodeWidth / 2;
 
         const parentLayer = familyNode.layer;
@@ -1842,6 +1849,392 @@ function ensureBondedAdjacent(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Order-key layout (Phase 2 + 3 rewrite)
+//
+// Each node's order key = mean of its children's keys; a leaf gets the next
+// sequential slot. This makes couples share a key region (they share children)
+// and multi-union parents land between their partners — no crossing heuristics.
+// ─────────────────────────────────────────────────────────────────────
+
+function computeOrderKeys(
+    persons: PersonModel[],
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>
+): Map<string, number> {
+    const key = new Map<string, number>();
+    const visiting = new Set<string>();
+    let nextSlot = 0;
+
+    function visit(id: string): number {
+        const existing = key.get(id);
+        if (existing !== undefined) return existing;
+        if (visiting.has(id)) return nextSlot; // guard against relationship cycles
+        visiting.add(id);
+
+        const children = (maps.parentOf.get(id) ?? []).filter(c => visibleNodeIds.has(c));
+        let k: number;
+        if (children.length === 0) {
+            k = nextSlot++;
+        } else {
+            let sum = 0;
+            for (const child of children) sum += visit(child);
+            k = sum / children.length;
+        }
+        key.set(id, k);
+        visiting.delete(id);
+        return k;
+    }
+
+    // Drive from lineage tops (no visible parents) that actually have children,
+    // so slots are assigned left-to-right down each lineage. Childless tops are
+    // left for the fallback below, so a married-in spouse takes its partner's key
+    // instead of an unrelated slot — keeping the couple together.
+    const tops = persons.filter(p => {
+        if (!visibleNodeIds.has(p.id)) return false;
+        const hasParent = (maps.childOf.get(p.id) ?? []).some(pa => visibleNodeIds.has(pa));
+        const hasChild = (maps.parentOf.get(p.id) ?? []).some(c => visibleNodeIds.has(c));
+        return !hasParent && hasChild;
+    });
+    for (const top of tops) visit(top.id);
+
+    // Anyone still unkeyed (childless): inherit a bonded partner's key so couples
+    // stay adjacent; otherwise take a fresh slot. Iterate until stable so chains
+    // of childless nodes all resolve.
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const person of persons) {
+            if (!visibleNodeIds.has(person.id) || key.has(person.id)) continue;
+            const partners = [
+                ...(maps.spouseOf.get(person.id) ?? []),
+                ...findCoParents(person.id, maps).keys(),
+            ];
+            const partnerKey = partners.map(s => key.get(s)).find((v): v is number => v !== undefined);
+            if (partnerKey !== undefined) {
+                key.set(person.id, partnerKey);
+                changed = true;
+            }
+        }
+    }
+    for (const person of persons) {
+        if (visibleNodeIds.has(person.id) && !key.has(person.id)) key.set(person.id, nextSlot++);
+    }
+
+    return key;
+}
+
+/** Maximal groups of same-layer nodes connected by spouse or co-parent bonds. */
+function bondComponents(
+    nodesInLayer: string[],
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>
+): string[][] {
+    const inLayer = new Set(nodesInLayer);
+    const seen = new Set<string>();
+    const components: string[][] = [];
+
+    const bondedNeighbors = (id: string): string[] => {
+        const out: string[] = [];
+        for (const s of maps.spouseOf.get(id) ?? []) {
+            if (inLayer.has(s)) out.push(s);
+        }
+        for (const child of (maps.parentOf.get(id) ?? []).filter(c => visibleNodeIds.has(c))) {
+            for (const coParent of maps.childOf.get(child) ?? []) {
+                if (coParent !== id && inLayer.has(coParent)) out.push(coParent);
+            }
+        }
+        return out;
+    };
+
+    for (const start of nodesInLayer) {
+        if (seen.has(start)) continue;
+        const component: string[] = [];
+        const queue = [start];
+        while (queue.length > 0) {
+            const cur = queue.pop()!;
+            if (seen.has(cur)) continue;
+            seen.add(cur);
+            component.push(cur);
+            for (const n of bondedNeighbors(cur)) {
+                if (!seen.has(n)) queue.push(n);
+            }
+        }
+        components.push(component);
+    }
+    return components;
+}
+
+function permutations<T>(items: T[]): T[][] {
+    if (items.length <= 1) return [items.slice()];
+    const result: T[][] = [];
+    const arr = items.slice();
+    const generate = (n: number) => {
+        if (n === 1) {
+            result.push(arr.slice());
+            return;
+        }
+        for (let i = 0; i < n; i++) {
+            generate(n - 1);
+            const j = n % 2 === 0 ? i : 0;
+            [arr[j], arr[n - 1]] = [arr[n - 1], arr[j]];
+        }
+    };
+    generate(arr.length);
+    return result;
+}
+
+/**
+ * Order the members of one bond component left-to-right so that bonded pairs sit
+ * adjacent (a couple's two partners, a chain like coparent–hub–coparent–spouse,
+ * or a star with the shared parent in the middle). Components are tiny, so we
+ * brute-force the best linear arrangement; large ones fall back to key order.
+ */
+function orderComponentByBonds(
+    comp: string[],
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>,
+    keyOf: (id: string) => number
+): string[] {
+    if (comp.length <= 1) return comp;
+
+    const byKey = [...comp].sort((a, b) => keyOf(a) - keyOf(b) || a.localeCompare(b));
+    if (comp.length > 7) return byKey;
+
+    const pairs: [string, string][] = [];
+    for (let i = 0; i < comp.length; i++) {
+        for (let j = i + 1; j < comp.length; j++) {
+            if (getBondType(comp[i], comp[j], maps, visibleNodeIds) !== null) {
+                pairs.push([comp[i], comp[j]]);
+            }
+        }
+    }
+
+    let best = byKey;
+    let bestCost = Infinity;
+    for (const perm of permutations(comp)) {
+        const index = new Map(perm.map((id, i) => [id, i]));
+        let nonAdjacent = 0;
+        let span = 0;
+        for (const [a, b] of pairs) {
+            const d = Math.abs(index.get(a)! - index.get(b)!);
+            if (d > 1) nonAdjacent++;
+            span += d;
+        }
+        let keyInversions = 0;
+        for (let i = 0; i < perm.length; i++) {
+            for (let j = i + 1; j < perm.length; j++) {
+                if (keyOf(perm[i]) > keyOf(perm[j])) keyInversions++;
+            }
+        }
+        const cost = nonAdjacent * 1e6 + span * 1e3 + keyInversions;
+        if (cost < bestCost) {
+            bestCost = cost;
+            best = perm;
+        }
+    }
+    return best;
+}
+
+/** Split an already-ordered layer into contiguous runs of the same bond component. */
+function bondComponentsInOrder(
+    nodes: string[],
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>
+): string[][] {
+    const comps = bondComponents(nodes, maps, visibleNodeIds);
+    const compId = new Map<string, number>();
+    comps.forEach((c, i) => c.forEach(id => compId.set(id, i)));
+
+    const result: string[][] = [];
+    let current: string[] = [];
+    let currentId = -1;
+    for (const id of nodes) {
+        const cid = compId.get(id) ?? -1;
+        if (cid !== currentId && current.length > 0) {
+            result.push(current);
+            current = [];
+        }
+        currentId = cid;
+        current.push(id);
+    }
+    if (current.length > 0) result.push(current);
+    return result;
+}
+
+function buildLayerOrder(
+    key: Map<string, number>,
+    layerMap: Map<string, number>,
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>
+): Map<number, string[]> {
+    const byLayer = new Map<number, string[]>();
+    for (const id of visibleNodeIds) {
+        const layer = layerMap.get(id) ?? 0;
+        if (!byLayer.has(layer)) byLayer.set(layer, []);
+        byLayer.get(layer)!.push(id);
+    }
+
+    const keyOf = (id: string) => key.get(id) ?? 0;
+    const order = new Map<number, string[]>();
+
+    for (const [layer, nodes] of byLayer) {
+        const components = bondComponents(nodes, maps, visibleNodeIds)
+            .map(comp => orderComponentByBonds(comp, maps, visibleNodeIds, keyOf));
+
+        const compKey = (comp: string[]) => comp.reduce((s, id) => s + keyOf(id), 0) / comp.length;
+        components.sort((a, b) => compKey(a) - compKey(b) || a[0].localeCompare(b[0]));
+
+        order.set(layer, components.flat());
+    }
+    return order;
+}
+
+/**
+ * Barycenter crossing reduction on the ORDER (integer indices, not pixels).
+ * Reorders whole bond components within each layer by the average index of their
+ * neighbours in the adjacent layer. Components stay atomic, so couple adjacency
+ * is never broken. Fixes crossings that key-order ties leave behind.
+ */
+function minimizeOrderCrossings(
+    order: Map<number, string[]>,
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>,
+    iterations = 4
+): void {
+    const layers = Array.from(order.keys()).sort((a, b) => a - b);
+
+    for (let iter = 0; iter < iterations; iter++) {
+        const goingDown = iter % 2 === 0;
+        const sweep = goingDown ? layers.slice(1) : layers.slice(0, -1).reverse();
+
+        for (const layer of sweep) {
+            const adjacent = order.get(layer + (goingDown ? -1 : 1)) ?? [];
+            const adjIndex = new Map(adjacent.map((id, i) => [id, i]));
+            const neighborsOf = (id: string) =>
+                (goingDown ? maps.childOf.get(id) : maps.parentOf.get(id)) ?? [];
+
+            const components = bondComponentsInOrder(order.get(layer) ?? [], maps, visibleNodeIds);
+            const bary = new Map<string[], number>();
+            components.forEach((comp, idx) => {
+                const indices: number[] = [];
+                for (const member of comp) {
+                    for (const nb of neighborsOf(member)) {
+                        const ai = adjIndex.get(nb);
+                        if (ai !== undefined) indices.push(ai);
+                    }
+                }
+                bary.set(comp, indices.length > 0
+                    ? indices.reduce((a, b) => a + b, 0) / indices.length
+                    : idx); // no neighbours: keep current position
+            });
+
+            const reordered = [...components]
+                .map((comp, idx) => ({ comp, idx }))
+                .sort((a, b) => (bary.get(a.comp)! - bary.get(b.comp)!) || (a.idx - b.idx))
+                .map(x => x.comp);
+
+            order.set(layer, reordered.flat());
+        }
+    }
+}
+
+function gapBetween(
+    a: string,
+    b: string,
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>,
+    config: LayoutConfig
+): number {
+    switch (getBondType(a, b, maps, visibleNodeIds)) {
+        case 'spouse': return config.spouseGap;
+        case 'coparent': return config.coParentGap;
+        case 'sibling': return config.siblingGap;
+        default: return config.branchGap;
+    }
+}
+
+/** Initial left-to-right packing per layer, honouring the order and bond-aware gaps. */
+function packByOrder(
+    order: Map<number, string[]>,
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>,
+    config: LayoutConfig
+): Map<string, number> {
+    const x = new Map<string, number>();
+    for (const nodes of order.values()) {
+        let cursor = 0;
+        for (let i = 0; i < nodes.length; i++) {
+            if (i > 0) cursor += config.nodeWidth + gapBetween(nodes[i - 1], nodes[i], maps, visibleNodeIds, config);
+            x.set(nodes[i], cursor);
+        }
+    }
+    return x;
+}
+
+/**
+ * One centering sweep, operating on bond components as rigid blocks so couples
+ * stay centered (not each spouse individually) and stay contiguous.
+ *
+ *   dir='up'   — align each block over its children  (sweep deep → shallow)
+ *   dir='down' — align each block under its parents   (sweep shallow → deep)
+ *
+ * Blocks are processed left-to-right and clamped against the previous block, so
+ * the per-layer order is always preserved.
+ */
+function centerComponents(
+    layersAsc: number[],
+    componentsByLayer: Map<number, string[][]>,
+    xPositions: Map<string, number>,
+    maps: RelationshipMaps,
+    visibleNodeIds: Set<string>,
+    config: LayoutConfig,
+    dir: 'up' | 'down'
+): void {
+    const sweep = dir === 'up' ? [...layersAsc].reverse() : layersAsc;
+    const neighborsOf = (id: string) =>
+        (dir === 'up' ? maps.parentOf.get(id) : maps.childOf.get(id) ?? [])
+            ?? [];
+
+    for (const layer of sweep) {
+        const components = componentsByLayer.get(layer) ?? [];
+        let prevRight = -Infinity;
+        let prevLast: string | null = null;
+
+        for (const comp of components) {
+            const neighborCenters: number[] = [];
+            for (const member of comp) {
+                for (const nb of neighborsOf(member)) {
+                    if (!visibleNodeIds.has(nb)) continue;
+                    const nx = xPositions.get(nb);
+                    if (nx !== undefined) neighborCenters.push(nx + config.nodeWidth / 2);
+                }
+            }
+
+            const xs = comp.map(id => xPositions.get(id) ?? 0);
+            const compLeft = Math.min(...xs);
+            const compRight = Math.max(...xs) + config.nodeWidth;
+            const compCenter = (compLeft + compRight) / 2;
+
+            let shift = 0;
+            if (neighborCenters.length > 0) {
+                const target = neighborCenters.reduce((a, b) => a + b, 0) / neighborCenters.length;
+                shift = target - compCenter;
+            }
+
+            const minLeft = prevLast === null
+                ? -Infinity
+                : prevRight + gapBetween(prevLast, comp[0], maps, visibleNodeIds, config);
+            if (compLeft + shift < minLeft) shift = minLeft - compLeft;
+
+            for (const id of comp) xPositions.set(id, (xPositions.get(id) ?? 0) + shift);
+
+            prevRight = Math.max(...comp.map(id => xPositions.get(id) ?? 0)) + config.nodeWidth;
+            prevLast = comp[comp.length - 1];
+        }
+    }
+}
+
 interface CalculatePositionsResult {
     positions: Map<string, Position>;
     familyNodes: Map<string, FamilyNode>;
@@ -1855,25 +2248,38 @@ function calculatePositions(
     visibleNodeIds: Set<string>,
     config: LayoutConfig
 ): CalculatePositionsResult {
-    // Phase 1: Structure — build family clusters and compute widths
+    // Phase 1: Structure — family clusters give us the connector (family) nodes
     const clusterTree = buildClusterTree(persons, layerMap, maps, visibleNodeIds, focusPersonId);
     const familyNodes = createFamilyNodes(clusterTree, layerMap, visibleNodeIds);
-    calculateClusterWidths(clusterTree, maps, visibleNodeIds, config);
 
-    // Phase 2: Ordering — initial positions from cluster tree + crossing minimization
-    const xPositions = assignClusterPositions(clusterTree, maps, visibleNodeIds, focusPersonId, config);
-    resolveLayerCollisions(xPositions, layerMap, visibleNodeIds, config, maps);
-    minimizeCrossingsImproved(xPositions, layerMap, maps, visibleNodeIds, config);
+    // Phase 2: Ordering — order keys fix a stable left-to-right order per layer,
+    // keeping couples adjacent and multi-union parents between their partners.
+    const orderKeys = computeOrderKeys(persons, maps, visibleNodeIds);
+    const order = buildLayerOrder(orderKeys, layerMap, maps, visibleNodeIds);
+    minimizeOrderCrossings(order, maps, visibleNodeIds);
 
-    // Phase 3: Coordinates — Brandes-Köpf as primary coordinate assignment
-    const refinedX = brandesKopfCoordinates(layerMap, xPositions, maps, visibleNodeIds, config);
-    for (const [nodeId, x] of refinedX) {
-        xPositions.set(nodeId, x);
+    // Phase 3: Coordinates — pack by order, then alternate centering passes over
+    // bond components (couples move as one block). Every pass preserves the layer
+    // order, so couples stay adjacent by construction. No Brandes-Köpf, no nudges.
+    const layersAsc = Array.from(order.keys()).sort((a, b) => a - b);
+    const componentsByLayer = new Map<number, string[][]>();
+    for (const [layer, nodes] of order) {
+        componentsByLayer.set(layer, bondComponentsInOrder(nodes, maps, visibleNodeIds));
     }
-    resolveLayerCollisions(xPositions, layerMap, visibleNodeIds, config, maps);
-    ensureBondedAdjacent(xPositions, layerMap, maps, visibleNodeIds, config);
-    resolveLayerCollisions(xPositions, layerMap, visibleNodeIds, config, maps);
-    centerChildrenUnderParents(xPositions, layerMap, maps, visibleNodeIds, config);
+
+    const xPositions = packByOrder(order, maps, visibleNodeIds, config);
+    for (let pass = 0; pass < 4; pass++) {
+        centerComponents(layersAsc, componentsByLayer, xPositions, maps, visibleNodeIds, config, 'up');
+        centerComponents(layersAsc, componentsByLayer, xPositions, maps, visibleNodeIds, config, 'down');
+    }
+    centerComponents(layersAsc, componentsByLayer, xPositions, maps, visibleNodeIds, config, 'up');
+
+    // Normalize so the left edge sits at 0 (centering passes drift rightward).
+    const allX = Array.from(xPositions.values());
+    if (allX.length > 0) {
+        const minX = Math.min(...allX);
+        for (const [id, x] of xPositions) xPositions.set(id, x - minX);
+    }
 
     // Phase 4: Finalize — position family connector nodes and compute Y
     positionFamilyNodes(familyNodes, xPositions, layerMap, config);
@@ -2261,4 +2667,7 @@ export const _testInternals = {
     calculatePositions,
     markFocusLineage,
     BOND_PRIORITY,
+    computeOrderKeys,
+    bondComponents,
+    buildLayerOrder,
 };
