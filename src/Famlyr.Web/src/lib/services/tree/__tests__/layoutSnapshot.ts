@@ -34,6 +34,77 @@ function crossingCount(layout: TreeLayout): number {
     );
 }
 
+function avg(xs: number[]): number {
+    return xs.reduce((a, b) => a + b, 0) / xs.length;
+}
+
+/**
+ * True visual crossing count: crossings between family *units* as the renderer
+ * actually draws them (parents → rail → children), not raw parent→child segments.
+ * A crossing = two families in the same generation whose parents are ordered one
+ * way but whose children are ordered the opposite way.
+ */
+export function countFamilyCrossings(layout: TreeLayout): number {
+    const byGen = new Map<number, { p: number; c: number }[]>();
+
+    for (const fam of layout.familyNodes.values()) {
+        const parents = fam.parentIds
+            .map(id => layout.nodes.get(id))
+            .filter((n): n is TreeNode => !!n && n.isVisible);
+        const children = fam.childIds
+            .map(id => layout.nodes.get(id))
+            .filter((n): n is TreeNode => !!n && n.isVisible);
+        if (parents.length === 0 || children.length === 0) continue;
+
+        const gen = parents[0].layer;
+        if (!byGen.has(gen)) byGen.set(gen, []);
+        byGen.get(gen)!.push({
+            p: avg(parents.map(n => n.position.x + n.width / 2)),
+            c: avg(children.map(n => n.position.x + n.width / 2)),
+        });
+    }
+
+    let crossings = 0;
+    for (const edges of byGen.values()) {
+        const sorted = [...edges].sort((a, b) => a.p - b.p || a.c - b.c);
+        for (let i = 0; i < sorted.length; i++) {
+            for (let j = i + 1; j < sorted.length; j++) {
+                if (sorted[i].c > sorted[j].c) crossings++;
+            }
+        }
+    }
+    return crossings;
+}
+
+/**
+ * Counts bonded pairs (spouse / co-parent) that are NOT horizontally adjacent —
+ * i.e. some other node on the same layer sits between the two partners. This is
+ * the primary quality signal: couples must sit side by side.
+ */
+export function countAdjacencyViolations(layout: TreeLayout): { spouse: number; coparent: number } {
+    const byLayer = new Map<number, TreeNode[]>();
+    for (const n of visible(layout)) {
+        if (!byLayer.has(n.layer)) byLayer.set(n.layer, []);
+        byLayer.get(n.layer)!.push(n);
+    }
+
+    const result = { spouse: 0, coparent: 0 };
+    for (const conn of layout.connections) {
+        if (conn.type !== 'spouse' && conn.type !== 'coparent') continue;
+        const a = layout.nodes.get(conn.fromIds[0]);
+        const b = layout.nodes.get(conn.toIds[0]);
+        if (!a || !b || !a.isVisible || !b.isVisible || a.layer !== b.layer) continue;
+
+        const lo = Math.min(a.position.x, b.position.x);
+        const hi = Math.max(a.position.x, b.position.x);
+        const between = (byLayer.get(a.layer) ?? []).some(
+            n => n.id !== a.id && n.id !== b.id && n.position.x > lo && n.position.x < hi
+        );
+        if (between) result[conn.type]++;
+    }
+    return result;
+}
+
 /**
  * Deterministic, human-readable serialization of a layout for golden snapshots.
  * Nodes are grouped by layer and sorted by x (then id) so the snapshot reads
@@ -46,8 +117,11 @@ export function serializeLayout(layout: TreeLayout): string {
         byLayer.get(node.layer)!.push(node);
     }
 
+    const adj = countAdjacencyViolations(layout);
     const lines: string[] = [];
-    lines.push(`crossings: ${crossingCount(layout)}`);
+    lines.push(`adjacency-violations: spouse=${adj.spouse} coparent=${adj.coparent}`);
+    lines.push(`family-crossings: ${countFamilyCrossings(layout)}`);
+    lines.push(`raw-crossings: ${crossingCount(layout)}`);
     lines.push(
         `bounds: x=[${round(layout.bounds.minX)}..${round(layout.bounds.maxX)}] ` +
         `w=${round(layout.bounds.width)} h=${round(layout.bounds.height)}`
