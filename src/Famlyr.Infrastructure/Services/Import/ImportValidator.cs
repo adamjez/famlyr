@@ -9,8 +9,8 @@ public class ImportValidationResult
     public List<ImportError> Errors { get; } = [];
     public List<ImportWarning> Warnings { get; } = [];
     public Dictionary<string, int> TempIdToIndex { get; } = [];
-    public Dictionary<string, DateOnly?> ParsedBirthDates { get; } = [];
-    public Dictionary<string, DateOnly?> ParsedDeathDates { get; } = [];
+    public Dictionary<string, ParsedDate?> ParsedBirthDates { get; } = [];
+    public Dictionary<string, ParsedDate?> ParsedDeathDates { get; } = [];
     public Dictionary<string, Gender> ParsedGenders { get; } = [];
 }
 
