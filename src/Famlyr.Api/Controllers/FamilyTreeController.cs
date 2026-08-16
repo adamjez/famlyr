@@ -34,6 +34,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
     {
         var result = await context.FamilyTrees
             .Where(ft => ft.Id == id)
+            .AsSplitQuery()
             .Select(ft => new
             {
                 ft.Id,
@@ -101,6 +102,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
     {
         var result = await context.FamilyTrees
             .Where(ft => ft.Id == id)
+            .AsSplitQuery()
             .Select(ft => new
             {
                 ft.Id,
