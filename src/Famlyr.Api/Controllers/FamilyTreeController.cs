@@ -213,7 +213,15 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
         // Summary stats
         var withBirthDate = persons.Count(p => p.BirthYear.HasValue);
         var withDeathDate = persons.Count(p => p.DeathYear.HasValue);
-        var living = persons.Count(p => p.BirthYear.HasValue && !p.DeathYear.HasValue);
+        // Living = has a birth year, no death recorded, and not older than a plausible
+        // human lifespan (someone born >120 years ago is presumed deceased even if the
+        // death date is unknown).
+        const int maxLivingAgeYears = 120;
+        var currentYear = DateTime.UtcNow.Year;
+        var living = persons.Count(p =>
+            p.BirthYear.HasValue
+            && !p.DeathYear.HasValue
+            && currentYear - p.BirthYear.Value <= maxLivingAgeYears);
 
         // Gender stats
         var genderGroups = persons.GroupBy(p => p.Gender).ToDictionary(g => g.Key, g => g.Count());
