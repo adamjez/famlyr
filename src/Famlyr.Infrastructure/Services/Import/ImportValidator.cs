@@ -177,6 +177,17 @@ public class ImportValidator
             });
         }
 
+        if (person.BirthName?.Length > MaxNameLength)
+        {
+            result.Errors.Add(new ImportError
+            {
+                Type = "BIRTH_NAME_TOO_LONG",
+                TempId = person.TempId,
+                Field = "birthName",
+                Message = $"birthName exceeds {MaxNameLength} characters"
+            });
+        }
+
         if (person.Notes?.Length > MaxNotesLength)
         {
             result.Errors.Add(new ImportError

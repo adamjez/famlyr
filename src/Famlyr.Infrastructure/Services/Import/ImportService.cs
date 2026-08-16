@@ -175,6 +175,7 @@ public class ImportService(FamlyrDbContext context) : IImportService
             {
                 FirstName = string.IsNullOrWhiteSpace(importPerson.FirstName) ? null : importPerson.FirstName.Trim(),
                 LastName = string.IsNullOrWhiteSpace(importPerson.LastName) ? null : importPerson.LastName.Trim(),
+                BirthName = string.IsNullOrWhiteSpace(importPerson.BirthName) ? null : importPerson.BirthName.Trim(),
                 Gender = validation.ParsedGenders[importPerson.TempId],
                 BirthYear = birthDate?.Year,
                 BirthMonth = birthDate?.Month,
