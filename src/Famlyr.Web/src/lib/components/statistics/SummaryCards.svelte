@@ -29,7 +29,7 @@
     <div class="card">
         <p class="card-value">{summary.livingPersons}</p>
         <p class="card-label">Living</p>
-        <p class="card-note">without death date</p>
+        <p class="card-note">no death date, born ≤120 years ago</p>
     </div>
 
     <div class="card">
