@@ -27,6 +27,7 @@ public record ImportPerson
     public required string TempId { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    public string? BirthName { get; init; }
     public string? Gender { get; init; }
     public string? BirthDate { get; init; }
     public string? DeathDate { get; init; }
