@@ -379,8 +379,7 @@ public class PersonController(FamlyrDbContext context, PhotoValidationService ph
         var searchPattern = $"%{q}%";
         var query = context.Persons
             .Where(p => p.FamilyTreeId == treeId)
-            .Where(p => EF.Functions.ILike(p.FirstName ?? "", searchPattern) ||
-                        EF.Functions.ILike(p.LastName ?? "", searchPattern));
+            .Where(p => EF.Functions.ILike((p.FirstName ?? "") + " " + (p.LastName ?? ""), searchPattern));
 
         if (excludePersonId.HasValue)
             query = query.Where(p => p.Id != excludePersonId.Value);
