@@ -2,7 +2,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
     .WithDataVolume()
-    .WithPgAdmin();
+    .WithPgAdmin(b => b.WithExplicitStart());
 
 var database = postgres.AddDatabase("famlyrdb");
 
