@@ -170,15 +170,17 @@
         }
     }
 
-    function handleSelectRelatedPerson(relatedPerson: { id: string; firstName: string | null; lastName: string | null; gender: string }) {
-        onSelectPerson({
-            id: relatedPerson.id,
-            firstName: relatedPerson.firstName,
-            lastName: relatedPerson.lastName,
-            gender: relatedPerson.gender as Gender,
-            birthDate: null,
-            deathDate: null,
-            primaryPhotoUrl: null
+    async function handleSelectRelatedPerson(personId: string ) {
+        personDetail = await getPerson(treeId, personId);
+
+        onSelectPerson({ 
+            id: personDetail.id,
+            birthDate: personDetail.birthDate,
+            deathDate: personDetail.deathDate,
+            firstName: personDetail.firstName,
+            lastName: personDetail.lastName,
+            gender: personDetail.gender as Gender,
+            primaryPhotoUrl: personDetail.photos.find(photo => photo.isPrimary)?.imageUrl ?? null
         });
     }
 
@@ -328,7 +330,7 @@
                                     <li class="relation-item">
                                         <button
                                             class="relation-link relation-parent"
-                                            onclick={() => handleSelectRelatedPerson(rel.person)}
+                                            onclick={() => handleSelectRelatedPerson(rel.person.id)}
                                         >
                                             {formatName(rel.person.firstName, rel.person.lastName)}
                                         </button>
@@ -359,7 +361,7 @@
                                     <li class="relation-item">
                                         <button
                                             class="relation-link relation-spouse"
-                                            onclick={() => handleSelectRelatedPerson(rel.person)}
+                                            onclick={() => handleSelectRelatedPerson(rel.person.id)}
                                         >
                                             {formatName(rel.person.firstName, rel.person.lastName)}
                                         </button>
@@ -390,7 +392,7 @@
                                     <li class="relation-item">
                                         <button
                                             class="relation-link relation-child"
-                                            onclick={() => handleSelectRelatedPerson(rel.person)}
+                                            onclick={() => handleSelectRelatedPerson(rel.person.id)}
                                         >
                                             {formatName(rel.person.firstName, rel.person.lastName)}
                                         </button>
