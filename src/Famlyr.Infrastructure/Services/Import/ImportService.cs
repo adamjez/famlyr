@@ -197,24 +197,17 @@ public class ImportService(FamlyrDbContext context) : IImportService
         var relationships = new List<Relationship>();
         var processedRelationships = new HashSet<string>();
 
-        if (request.Relationships != null)
+        if (validation.ParsedRelationships.Count > 0)
         {
-            foreach (var importRel in request.Relationships)
+            foreach (var importRel in validation.ParsedRelationships)
             {
-                var relType = Enum.Parse<RelationshipType>(importRel.Type, ignoreCase: true);
-
-                Guid subjectId, relativeId;
-
-                if (relType == RelationshipType.Spouse)
+                var (relType, subjectId, relativeId) = importRel switch
                 {
-                    subjectId = personIdMap[importRel.Person1TempId!];
-                    relativeId = personIdMap[importRel.Person2TempId!];
-                }
-                else
-                {
-                    subjectId = personIdMap[importRel.ChildTempId!];
-                    relativeId = personIdMap[importRel.ParentTempId!];
-                }
+                    SpouseImportRelationship spouse =>
+                        (RelationshipType.Spouse, personIdMap[spouse.Person1TempId], personIdMap[spouse.Person2TempId]),
+                    ParentImportRelationship parent =>
+                        (RelationshipType.Parent, personIdMap[parent.ChildTempId], personIdMap[parent.ParentTempId])
+                };
 
                 var relKey = $"{relType}:{subjectId}:{relativeId}";
                 if (!processedRelationships.Add(relKey))

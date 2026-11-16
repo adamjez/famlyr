@@ -8,6 +8,7 @@ public class ImportValidationResult
     public bool IsValid => Errors.Count == 0;
     public List<ImportError> Errors { get; } = [];
     public List<ImportWarning> Warnings { get; } = [];
+    public List<ParsedImportRelationship> ParsedRelationships { get; } = [];
     public Dictionary<string, int> TempIdToIndex { get; } = [];
     public Dictionary<string, ParsedDate?> ParsedBirthDates { get; } = [];
     public Dictionary<string, ParsedDate?> ParsedDeathDates { get; } = [];
@@ -375,6 +376,19 @@ public class ImportValidator
                 Message = $"Referenced tempId '{relativeTempId}' does not exist in persons array"
             });
         }
+
+        if (!result.TempIdToIndex.ContainsKey(subjectTempId)
+            || !result.TempIdToIndex.ContainsKey(relativeTempId))
+        {
+            return;
+        }
+
+        result.ParsedRelationships.Add(relType switch
+        {
+            RelationshipType.Spouse => new SpouseImportRelationship(subjectTempId, relativeTempId),
+            RelationshipType.Parent => new ParentImportRelationship(relativeTempId, subjectTempId),
+            _ => throw new InvalidOperationException($"Unsupported relationship type: {relType}")
+        });
 
         var relKey = $"{relType}:{subjectTempId}:{relativeTempId}";
         if (!seenRelationships.Add(relKey))
