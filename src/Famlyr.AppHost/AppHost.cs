@@ -6,11 +6,11 @@ var postgres = builder.AddPostgres("postgres")
 
 var database = postgres.AddDatabase("famlyrdb");
 
-var migrations = builder.AddProject<Projects.Famlyr_MigrationService>("migrations")
+var migrations = builder.AddDotnetProject("migrations", "../Famlyr.MigrationService/Famlyr.MigrationService.csproj")
     .WithReference(database)
     .WaitFor(database);
 
-var api = builder.AddProject<Projects.Famlyr_Api>("api")
+var api = builder.AddDotnetProject("api", "../Famlyr.Api/Famlyr.Api.csproj")
     .WithReference(database)
     .WaitForCompletion(migrations);
 

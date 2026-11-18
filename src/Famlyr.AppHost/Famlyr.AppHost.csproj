@@ -1,18 +1,16 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
     <UserSecretsId>6a37a6e9-145f-41a0-9779-f9f4e73fad1d</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" />
     <PackageReference Include="Aspire.Hosting.JavaScript" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Famlyr.Api\Famlyr.Api.csproj" />
-    <ProjectReference Include="..\Famlyr.MigrationService\Famlyr.MigrationService.csproj" />
   </ItemGroup>
 
 </Project>
