@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { SummaryStats } from '$lib/types/api';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         summary: SummaryStats;
@@ -23,24 +24,24 @@
 <div class="summary-cards">
     <div class="card">
         <p class="card-value">{summary.totalPersons}</p>
-        <p class="card-label">Total Persons</p>
+        <p class="card-label">{t('totalPersons')}</p>
     </div>
 
     <div class="card">
         <p class="card-value">{summary.livingPersons}</p>
-        <p class="card-label">Living</p>
-        <p class="card-note">no death date, born ≤120 years ago</p>
+        <p class="card-label">{t('living')}</p>
+        <p class="card-note">{t('livingNote')}</p>
     </div>
 
     <div class="card">
         <p class="card-value">{birthDatePercent}%</p>
-        <p class="card-label">Birth Dates</p>
+        <p class="card-label">{t('birthDates')}</p>
         <p class="card-note">{summary.personsWithBirthDate} of {summary.totalPersons}</p>
     </div>
 
     <div class="card">
         <p class="card-value">{deathDatePercent}%</p>
-        <p class="card-label">Death Dates</p>
+        <p class="card-label">{t('deathDates')}</p>
         <p class="card-note">{summary.personsWithDeathDate} of {summary.totalPersons}</p>
     </div>
 </div>

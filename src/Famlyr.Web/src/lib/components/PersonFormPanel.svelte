@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { PersonDetailModel, PersonPhotoModel } from '$lib/types/api';
     import { createPerson, updatePerson, deletePhoto, setPrimaryPhoto } from '$lib/api/persons';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         treeId: string;
@@ -110,13 +111,13 @@
 <button
     class="panel-backdrop"
     onclick={onClose}
-    aria-label="Close panel"
+    aria-label={t('closePanel')}
 ></button>
 
-<div class="form-panel" role="dialog" aria-modal="true" aria-label={isEditMode ? 'Edit person' : 'Add person'}>
+<div class="form-panel" role="dialog" aria-modal="true" aria-label={isEditMode ? t('editPerson') : t('addPersonTitle')}>
     <header class="panel-header">
-        <h3>{isEditMode ? 'Edit Person' : 'Add Person'}</h3>
-        <button class="close-btn" onclick={onClose} aria-label="Close panel">
+        <h3>{isEditMode ? t('editPerson') : t('addPersonTitle')}</h3>
+        <button class="close-btn" onclick={onClose} aria-label={t('closePanel')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -126,82 +127,82 @@
 
     <form class="panel-content" onsubmit={handleSubmit}>
         <div class="form-group">
-            <label for="firstName">First Name</label>
+            <label for="firstName">{t('firstName')}</label>
             <input
                 type="text"
                 id="firstName"
                 bind:value={firstName}
                 maxlength={100}
-                placeholder="Enter first name"
+                placeholder={t('enterPersonFirstName')}
             />
         </div>
 
         <div class="form-group">
-            <label for="lastName">Last Name</label>
+            <label for="lastName">{t('lastName')}</label>
             <input
                 type="text"
                 id="lastName"
                 bind:value={lastName}
                 maxlength={100}
-                placeholder="Enter last name"
+                placeholder={t('enterPersonLastName')}
             />
         </div>
 
         <div class="form-group">
-            <label for="birthName">Birth Name</label>
+            <label for="birthName">{t('birthName')}</label>
             <input
                 type="text"
                 id="birthName"
                 bind:value={birthName}
                 maxlength={100}
-                placeholder="Enter birth name (maiden name, etc.)"
+                placeholder={t('enterBirthName')}
             />
         </div>
 
         <div class="form-group">
-            <label for="gender">Gender</label>
+            <label for="gender">{t('gender')}</label>
             <select id="gender" bind:value={gender}>
                 {#each genderOptions as option}
-                    <option value={option}>{option}</option>
+                    <option value={option}>{t(option.toLowerCase() === 'unknown' ? 'unknownGender' : option.toLowerCase() as 'male' | 'female' | 'other')}</option>
                 {/each}
             </select>
         </div>
 
         <div class="form-group">
-            <label for="birthDate">Birth Date</label>
+            <label for="birthDate">{t('birthDate')}</label>
             <input
                 type="text"
                 id="birthDate"
                 bind:value={birthDate}
                 placeholder="YYYY or YYYY-MM-DD"
             />
-            <span class="helper-text">Enter year only (e.g., 1950) or full date (e.g., 1950-03-15)</span>
+            <span class="helper-text">{t('yearDateHelp')}</span>
         </div>
 
         <div class="form-group">
-            <label for="deathDate">Death Date</label>
+            <label for="deathDate">{t('deathDate')}</label>
             <input
                 type="text"
                 id="deathDate"
                 bind:value={deathDate}
                 placeholder="YYYY or YYYY-MM-DD"
             />
-            <span class="helper-text">Leave empty if person is still living</span>
+            <span class="helper-text">{t('stillLivingHelp')}</span>
         </div>
 
         <div class="form-group">
-            <label for="notes">Notes</label>
+            <label for="notes">{t('notes')}</label>
             <textarea
                 id="notes"
                 bind:value={notes}
                 maxlength={10000}
                 rows={4}
-                placeholder="Add any additional notes..."
+                placeholder={t('notesPlaceholder')}
             ></textarea>
         </div>
 
         <div class="form-group">
-            <label for="photos">Photos</label>
+            <label for="photos">{t('photos')}</label>
             {#if existingPhotos.length > 0}
                 <div class="photo-grid">
                     {#each existingPhotos as photo}

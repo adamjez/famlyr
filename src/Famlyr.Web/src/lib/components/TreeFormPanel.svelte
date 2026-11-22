@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { FamilyTreeDetailModel } from '$lib/types/api';
     import { createFamilyTree, updateFamilyTree } from '$lib/api/familyTree';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         tree?: FamilyTreeDetailModel;
@@ -29,17 +30,17 @@
 
         const trimmedName = name.trim();
         if (!trimmedName) {
-            error = 'Name is required';
+            error = t('nameRequired');
             return;
         }
 
         if (trimmedName.length > 200) {
-            error = 'Name must not exceed 200 characters';
+            error = t('nameTooLong');
             return;
         }
 
         if (description && description.length > 2000) {
-            error = 'Description must not exceed 2000 characters';
+            error = t('descriptionTooLong');
             return;
         }
 
@@ -71,13 +72,13 @@
 <button
     class="panel-backdrop"
     onclick={onClose}
-    aria-label="Close panel"
+    aria-label={t('closePanel')}
 ></button>
 
-<div class="form-panel" role="dialog" aria-modal="true" aria-label={isEditMode ? 'Edit tree' : 'Create tree'}>
+<div class="form-panel" role="dialog" aria-modal="true" aria-label={isEditMode ? t('editTree') : t('createTree')}>
     <header class="panel-header">
-        <h3>{isEditMode ? 'Edit Tree' : 'Create Tree'}</h3>
-        <button class="close-btn" onclick={onClose} aria-label="Close panel">
+        <h3>{isEditMode ? t('editTree') : t('createTree')}</h3>
+        <button class="close-btn" onclick={onClose} aria-label={t('closePanel')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -87,28 +88,28 @@
 
     <form class="panel-content" onsubmit={handleSubmit}>
         <div class="form-group">
-            <label for="name">Name <span class="required">*</span></label>
+            <label for="name">{t('name')} <span class="required">*</span></label>
             <input
                 type="text"
                 id="name"
                 bind:value={name}
                 maxlength={200}
-                placeholder="Enter tree name"
+                placeholder={t('enterTreeName')}
                 required
             />
-            <span class="helper-text">Required. Maximum 200 characters.</span>
+            <span class="helper-text">{t('nameHelp')}</span>
         </div>
 
         <div class="form-group">
-            <label for="description">Description</label>
+            <label for="description">{t('description')}</label>
             <textarea
                 id="description"
                 bind:value={description}
                 maxlength={2000}
                 rows={4}
-                placeholder="Add a description for your family tree..."
+                placeholder={t('descriptionHelp')}
             ></textarea>
-            <span class="helper-text">Optional. Maximum 2000 characters.</span>
+            <span class="helper-text">{t('descriptionHelp')}</span>
         </div>
 
         {#if error}
@@ -117,13 +118,13 @@
 
         <div class="form-actions">
             <button type="button" class="btn btn-secondary" onclick={onClose} disabled={isSubmitting}>
-                Cancel
+                {t('cancel')}
             </button>
             <button type="submit" class="btn btn-primary" disabled={isSubmitting}>
                 {#if isSubmitting}
-                    Saving...
+                    {t('saving')}
                 {:else}
-                    {isEditMode ? 'Save Changes' : 'Create Tree'}
+                    {isEditMode ? t('saveChanges') : t('createTree')}
                 {/if}
             </button>
         </div>

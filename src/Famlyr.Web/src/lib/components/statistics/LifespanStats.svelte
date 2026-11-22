@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { LifespanStats } from '$lib/types/api';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         stats: LifespanStats;
@@ -11,14 +12,14 @@
 </script>
 
 <div class="lifespan-stats">
-    <h3 class="chart-title">Lifespan Statistics</h3>
+    <h3 class="chart-title">{t('lifespanStatistics')}</h3>
 
     {#if !hasData}
         <p class="empty-message">
-            Insufficient data. Lifespan requires both birth and death dates.
+            {t('insufficientLifespanData')}
         </p>
     {:else}
-        <p class="data-note">Based on {stats.personsWithLifespan} persons with complete dates</p>
+        <p class="data-note">{t('basedOnCompleteDates', { count: stats.personsWithLifespan })}</p>
 
         <div class="stats-grid">
             <div class="stat-item">
@@ -28,8 +29,8 @@
                     </svg>
                 </div>
                 <div class="stat-content">
-                    <p class="stat-value">{stats.averageLifespanYears} years</p>
-                    <p class="stat-label">Average Lifespan</p>
+                    <p class="stat-value">{stats.averageLifespanYears} {t('years')}</p>
+                    <p class="stat-label">{t('averageLifespan')}</p>
                 </div>
             </div>
 
@@ -40,8 +41,8 @@
                     </svg>
                 </div>
                 <div class="stat-content">
-                    <p class="stat-value">{stats.oldestDeathAge} years</p>
-                    <p class="stat-label">Oldest</p>
+                    <p class="stat-value">{stats.oldestDeathAge} {t('years')}</p>
+                    <p class="stat-label">{t('oldest')}</p>
                 </div>
             </div>
 
@@ -52,8 +53,8 @@
                     </svg>
                 </div>
                 <div class="stat-content">
-                    <p class="stat-value">{stats.youngestDeathAge} years</p>
-                    <p class="stat-label">Youngest</p>
+                    <p class="stat-value">{stats.youngestDeathAge} {t('years')}</p>
+                    <p class="stat-label">{t('youngest')}</p>
                 </div>
             </div>
         </div>

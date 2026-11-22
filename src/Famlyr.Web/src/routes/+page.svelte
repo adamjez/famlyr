@@ -4,6 +4,7 @@
     import type { FamilyTreeDetailModel } from "$lib/types/api";
     import { showToast } from "$lib/stores/toast.svelte";
     import TreeFormPanel from "$lib/components/TreeFormPanel.svelte";
+    import { t } from "$lib/i18n.svelte";
 
     let { data }: { data: PageData } = $props();
 
@@ -11,28 +12,28 @@
 
     async function handleTreeCreated(tree: FamilyTreeDetailModel) {
         showCreateTree = false;
-        showToast('Tree created successfully');
+        showToast(t('treeCreated'));
         goto(`/trees/${tree.id}`);
     }
 </script>
 
 <svelte:head>
-    <title>Family Trees - Famlyr</title>
+    <title>{t('familyTrees')} - Famlyr</title>
 </svelte:head>
 
 <div class="space-y-8">
     <div class="flex items-center justify-between">
-        <h1>Family Trees</h1>
+        <h1>{t('familyTrees')}</h1>
         <button class="btn btn-primary" onclick={() => showCreateTree = true}>
-            Create Tree
+            {t('createTree')}
         </button>
     </div>
 
     {#if data.trees.length === 0}
         <div class="card text-center py-12">
-            <p class="text-neutral-500">No family trees yet.</p>
+            <p class="text-neutral-500">{t('noFamilyTrees')}</p>
             <button class="btn btn-primary mt-4" onclick={() => showCreateTree = true}>
-                Create Your First Tree
+                {t('createYourFirstTree')}
             </button>
         </div>
     {:else}
@@ -44,7 +45,7 @@
                         <p class="mt-2 text-sm text-neutral-600 line-clamp-2">{tree.description}</p>
                     {/if}
                     <p class="mt-3 text-sm text-neutral-500">
-                        {tree.personCount} {tree.personCount === 1 ? 'person' : 'persons'}
+                        {tree.personCount} {tree.personCount === 1 ? t('person') : t('persons')}
                     </p>
                 </a>
             {/each}

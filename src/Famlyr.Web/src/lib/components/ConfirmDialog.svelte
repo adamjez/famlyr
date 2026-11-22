@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from '$lib/i18n.svelte';
     interface Props {
         title: string;
         message: string;
@@ -47,7 +48,7 @@
             onclick={onCancel}
             disabled={isLoading}
         >
-            Cancel
+            {t('cancel')}
         </button>
         <button
             type="button"
@@ -56,7 +57,7 @@
             disabled={isLoading}
         >
             {#if isLoading}
-                Deleting...
+                {t('deleting')}
             {:else}
                 {confirmText}
             {/if}

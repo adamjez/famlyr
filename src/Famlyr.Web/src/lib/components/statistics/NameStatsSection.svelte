@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { NameStatItem } from '$lib/types/api';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         firstNames: NameStatItem[];
@@ -11,16 +12,16 @@
 
 <div class="name-stats">
     <div class="name-table-container">
-        <h3 class="table-title">Top First Names</h3>
+        <h3 class="table-title">{t('topFirstNames')}</h3>
         {#if firstNames.length === 0}
-            <p class="empty-message">No data available</p>
+            <p class="empty-message">{t('noData')}</p>
         {:else}
             <table class="name-table">
                 <thead>
                     <tr>
                         <th class="rank-col">#</th>
-                        <th class="name-col">Name</th>
-                        <th class="count-col">Count</th>
+                        <th class="name-col">{t('name')}</th>
+                        <th class="count-col">{t('count')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -37,16 +38,16 @@
     </div>
 
     <div class="name-table-container">
-        <h3 class="table-title">Top Last Names</h3>
+        <h3 class="table-title">{t('topLastNames')}</h3>
         {#if lastNames.length === 0}
-            <p class="empty-message">No data available</p>
+            <p class="empty-message">{t('noData')}</p>
         {:else}
             <table class="name-table">
                 <thead>
                     <tr>
                         <th class="rank-col">#</th>
-                        <th class="name-col">Name</th>
-                        <th class="count-col">Count</th>
+                        <th class="name-col">{t('name')}</th>
+                        <th class="count-col">{t('count')}</th>
                     </tr>
                 </thead>
                 <tbody>

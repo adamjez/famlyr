@@ -5,6 +5,7 @@
     import BarChart from "$lib/components/statistics/BarChart.svelte";
     import GenderChart from "$lib/components/statistics/GenderChart.svelte";
     import LifespanStats from "$lib/components/statistics/LifespanStats.svelte";
+    import { t } from "$lib/i18n.svelte";
 
     let { data }: { data: PageData } = $props();
 
@@ -46,39 +47,39 @@
 </script>
 
 <svelte:head>
-    <title>Statistics - {data.tree.name} - Famlyr</title>
+    <title>{t('statistics')} - {data.tree.name} - Famlyr</title>
 </svelte:head>
 
 <div class="space-y-8">
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-sm text-neutral-500">
-        <a href="/" class="hover:text-primary-600 transition-colors">Family Trees</a>
+        <a href="/" class="hover:text-primary-600 transition-colors">{t('familyTrees')}</a>
         <span>/</span>
         <a href="/trees/{data.tree.id}" class="hover:text-primary-600 transition-colors"
             >{data.tree.name}</a
         >
         <span>/</span>
-        <span class="text-neutral-900">Statistics</span>
+        <span class="text-neutral-900">{t('statistics')}</span>
     </nav>
 
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1>Statistics</h1>
+            <h1>{t('statistics')}</h1>
             <p class="mt-1 text-neutral-600">{data.tree.name}</p>
         </div>
-        <a href="/trees/{data.tree.id}" class="btn btn-secondary">Back to Tree</a>
+        <a href="/trees/{data.tree.id}" class="btn btn-secondary">{t('backToTree')}</a>
     </div>
 
     <!-- Summary Cards -->
     <section>
-        <h2 class="section-title">Overview</h2>
+        <h2 class="section-title">{t('overview')}</h2>
         <SummaryCards summary={data.statistics.summary} />
     </section>
 
     <!-- Gender & Lifespan -->
     <section>
-        <h2 class="section-title">Demographics</h2>
+        <h2 class="section-title">{t('demographics')}</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <GenderChart stats={data.statistics.genderStats} />
             <LifespanStats stats={data.statistics.lifespanStats} />
@@ -87,7 +88,7 @@
 
     <!-- Name Statistics -->
     <section>
-        <h2 class="section-title">Name Analysis</h2>
+        <h2 class="section-title">{t('nameAnalysis')}</h2>
         <NameStatsSection
             firstNames={data.statistics.firstNameStats}
             lastNames={data.statistics.lastNameStats}
@@ -96,40 +97,40 @@
 
     <!-- Birth Date Charts -->
     <section>
-        <h2 class="section-title">Birth Date Patterns</h2>
+        <h2 class="section-title">{t('birthDatePatterns')}</h2>
         {#if fullBirthDatesCount > 0}
             <p class="text-sm text-neutral-500 mb-4">
-                Based on {fullBirthDatesCount} persons with complete birth dates
+                {t('basedOnBirthDates', { count: fullBirthDatesCount })}
             </p>
         {/if}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <BarChart
                 data={weekdayData}
-                title="Births by Weekday"
-                emptyMessage="No complete birth dates recorded"
+                title={t('birthsByWeekday')}
+                emptyMessage={t('noCompleteBirthDates')}
             />
             <BarChart
                 data={monthData}
-                title="Births by Month"
-                emptyMessage="No birth months recorded"
+                title={t('birthsByMonth')}
+                emptyMessage={t('noBirthMonths')}
             />
         </div>
         <div class="mt-4">
             <BarChart
                 data={dayOfMonthData}
-                title="Births by Day of Month"
-                emptyMessage="No complete birth dates recorded"
+                title={t('birthsByDay')}
+                emptyMessage={t('noCompleteBirthDates')}
             />
         </div>
     </section>
 
     <!-- Decade Distribution -->
     <section>
-        <h2 class="section-title">Generational Distribution</h2>
+        <h2 class="section-title">{t('generationalDistribution')}</h2>
         <BarChart
             data={decadeData}
-            title="Births by Decade"
-            emptyMessage="No birth years recorded"
+            title={t('birthsByDecade')}
+            emptyMessage={t('noBirthYears')}
         />
     </section>
 </div>

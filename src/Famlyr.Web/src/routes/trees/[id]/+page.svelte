@@ -10,6 +10,7 @@
     import TreeFormPanel from "$lib/components/TreeFormPanel.svelte";
     import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
     import TreeSearch from "$lib/components/tree/TreeSearch.svelte";
+    import { t } from "$lib/i18n.svelte";
 
     let { data }: { data: PageData } = $props();
 
@@ -30,13 +31,13 @@
     }
 
     function formatYearRange(): string {
-        if (!data.tree.yearRange) return "Unknown";
+        if (!data.tree.yearRange) return t('unknown');
         const { start, end } = data.tree.yearRange;
         return start === end ? `${start}` : `${start} - ${end}`;
     }
 
     function formatPersonName(person: PersonModel): string {
-        const first = person.firstName ?? "Unknown";
+        const first = person.firstName ?? t('unknown');
         const last = person.lastName ?? "";
         return `${first} ${last}`.trim();
     }
@@ -47,13 +48,20 @@
         if (death) {
             return `${birth} - ${death}`;
         }
-        return `b. ${birth}`;
+        return `${t('born')} ${birth}`;
     }
 
     function getInitials(person: PersonModel): string {
         const first = person.firstName?.[0] ?? '';
         const last = person.lastName?.[0] ?? '';
         return (first + last).toUpperCase() || '?';
+    }
+
+    function formatGender(gender: string): string {
+        if (gender === 'Male') return t('male');
+        if (gender === 'Female') return t('female');
+        if (gender === 'Other') return t('other');
+        return t('unknownGender');
     }
 
     function selectPerson(person: PersonModel) {
@@ -84,7 +92,7 @@
         const isEdit = !!editingPerson;
         closeFormPanel();
         await invalidateAll();
-        showToast(isEdit ? 'Person updated successfully' : 'Person added successfully');
+        showToast(isEdit ? t('personUpdated') : t('personAdded'));
     }
 
     function handleSearchSelect(person: PersonModel) {
@@ -94,7 +102,7 @@
     async function handleTreeSaved() {
         showEditTree = false;
         await invalidateAll();
-        showToast('Tree updated successfully');
+        showToast(t('treeUpdated'));
     }
 
     async function handlePersonDeleted() {
@@ -106,10 +114,10 @@
         isDeleting = true;
         try {
             await deleteFamilyTree(data.tree.id);
-            showToast('Tree deleted successfully');
+            showToast(t('treeDeleted'));
             goto('/');
         } catch (e) {
-            showToast(e instanceof Error ? e.message : 'Failed to delete tree', 'error');
+            showToast(e instanceof Error ? e.message : t('failedToDeleteTree'), 'error');
             showDeleteConfirm = false;
         } finally {
             isDeleting = false;
@@ -140,7 +148,7 @@
 <div class="space-y-8">
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-sm text-neutral-500">
-        <a href="/" class="hover:text-primary-600 transition-colors">Family Trees</a>
+        <a href="/" class="hover:text-primary-600 transition-colors">{t('familyTrees')}</a>
         <span>/</span>
         <span class="text-neutral-900">{data.tree.name}</span>
     </nav>
@@ -159,8 +167,8 @@
                     <button
                         class="icon-btn"
                         onclick={() => showEditTree = true}
-                        title="Edit tree"
-                        aria-label="Edit tree"
+                        title={t('editTree')}
+                        aria-label={t('editTree')}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -170,8 +178,8 @@
                     <button
                         class="icon-btn icon-btn-danger"
                         onclick={() => showDeleteConfirm = true}
-                        title="Delete tree"
-                        aria-label="Delete tree"
+                        title={t('deleteTree')}
+                        aria-label={t('deleteTree')}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6" />
@@ -181,14 +189,14 @@
                 </div>
             </div>
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
-                <button class="btn btn-secondary whitespace-nowrap" onclick={openAddPerson}>Add Person</button>
-                <a href="/trees/{data.tree.id}/statistics" class="btn btn-secondary whitespace-nowrap">Statistics</a>
-                <a href="/tree/{data.tree.id}" class="btn btn-primary whitespace-nowrap">View Tree</a>
+                <button class="btn btn-secondary whitespace-nowrap" onclick={openAddPerson}>{t('addPerson')}</button>
+                <a href="/trees/{data.tree.id}/statistics" class="btn btn-secondary whitespace-nowrap">{t('statistics')}</a>
+                <a href="/tree/{data.tree.id}" class="btn btn-primary whitespace-nowrap">{t('viewTree')}</a>
             </div>
         </div>
         <div class="mt-4 flex gap-6 text-sm text-neutral-500">
-            <span>Created: {formatDate(data.tree.createdAt)}</span>
-            <span>Updated: {formatDate(data.tree.updatedAt)}</span>
+            <span>{t('created')}: {formatDate(data.tree.createdAt)}</span>
+            <span>{t('updated')}: {formatDate(data.tree.updatedAt)}</span>
         </div>
     </div>
 
@@ -197,19 +205,19 @@
         <div class="card flex-1 text-center">
             <p class="text-3xl font-bold text-primary-600">{data.tree.personCount}</p>
             <p class="mt-1 text-sm text-neutral-500">
-                {data.tree.personCount === 1 ? "Person" : "Persons"}
+                {data.tree.personCount === 1 ? t('person') : t('persons')}
             </p>
         </div>
         <div class="card flex-1 text-center">
             <p class="text-3xl font-bold text-primary-600">{formatYearRange()}</p>
-            <p class="mt-1 text-sm text-neutral-500">Year Range</p>
+            <p class="mt-1 text-sm text-neutral-500">{t('yearRange')}</p>
         </div>
     </div>
 
     <!-- Persons List Section -->
     <div>
         <div class="flex items-center justify-between gap-4">
-            <h2 class="text-xl font-semibold">Persons</h2>
+            <h2 class="text-xl font-semibold">{t('persons')}</h2>
             {#if data.tree.persons.length > 0}
                 <div class="w-72">
                     <TreeSearch
@@ -224,7 +232,7 @@
 
         {#if data.tree.persons.length === 0}
             <div class="card mt-4 text-center py-8">
-                <p class="text-neutral-500">No persons in this tree yet.</p>
+                <p class="text-neutral-500">{t('noPersons')}</p>
             </div>
         {:else}
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -249,7 +257,7 @@
                                 <p class="font-medium text-neutral-900">{formatPersonName(person)}</p>
                                 <p class="mt-1 text-sm text-neutral-500">{getPersonYears(person)}</p>
                                 <span class="mt-2 inline-block text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
-                                    {person.gender}
+                                    {formatGender(person.gender)}
                                 </span>
                             </div>
                         </div>
@@ -301,9 +309,9 @@
 <!-- Delete Confirmation Dialog -->
 {#if showDeleteConfirm}
     <ConfirmDialog
-        title="Delete Tree"
-        message="Are you sure you want to delete '{data.tree.name}'? This will permanently remove all {data.tree.personCount} persons and their data. This action cannot be undone."
-        confirmText="Delete"
+        title={t('deleteTree')}
+        message={t('deleteTreeConfirm', { name: data.tree.name, count: data.tree.personCount })}
+        confirmText={t('delete')}
         confirmVariant="danger"
         isLoading={isDeleting}
         onConfirm={handleDeleteTree}

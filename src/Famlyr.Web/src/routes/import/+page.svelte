@@ -6,6 +6,7 @@
     import ValidationResults from '$lib/components/import/ValidationResults.svelte';
     import { importIntoExistingTree, importWithNewTree } from '$lib/api/import';
     import { getFamilyTrees } from '$lib/api/familyTree';
+    import { t } from '$lib/i18n.svelte';
 
     type ImportMode = 'new' | 'existing';
     type Step = 'upload' | 'configure' | 'review' | 'complete';
@@ -165,7 +166,7 @@
 </script>
 
 <svelte:head>
-    <title>Import Family Tree - Famlyr</title>
+    <title>{t('importFamilyTree')} - Famlyr</title>
 </svelte:head>
 
 <div class="import-page">
@@ -174,37 +175,37 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
             </svg>
-            Back
+            {t('back')}
         </a>
-        <h1>Import Family Tree</h1>
+        <h1>{t('importFamilyTree')}</h1>
     </div>
 
     <div class="steps">
         <div class="step" class:active={step === 'upload'} class:completed={step !== 'upload'}>
             <span class="step-number">1</span>
-            <span class="step-label">Upload</span>
+            <span class="step-label">{t('upload')}</span>
         </div>
         <div class="step-connector"></div>
         <div class="step" class:active={step === 'configure'} class:completed={step === 'review' || step === 'complete'}>
             <span class="step-number">2</span>
-            <span class="step-label">Configure</span>
+            <span class="step-label">{t('configure')}</span>
         </div>
         <div class="step-connector"></div>
         <div class="step" class:active={step === 'review'} class:completed={step === 'complete'}>
             <span class="step-number">3</span>
-            <span class="step-label">Review</span>
+            <span class="step-label">{t('review')}</span>
         </div>
         <div class="step-connector"></div>
         <div class="step" class:active={step === 'complete'}>
             <span class="step-number">4</span>
-            <span class="step-label">Complete</span>
+            <span class="step-label">{t('complete')}</span>
         </div>
     </div>
 
     <div class="content">
         {#if step === 'upload'}
             <div class="card">
-                <h2>Upload JSON File</h2>
+                <h2>{t('uploadJson')}</h2>
                 <p class="description">
                     Upload a JSON file containing family tree data. The file should follow the
                     Famlyr import schema with persons and relationships.
@@ -220,23 +221,23 @@
         {:else if step === 'configure'}
             <div class="two-column">
                 <div class="card">
-                    <h2>Import Configuration</h2>
+                    <h2>{t('importConfiguration')}</h2>
 
                     <fieldset class="form-section">
-                        <legend class="label">Import Mode</legend>
+                        <legend class="label">{t('importMode')}</legend>
                         <div class="radio-group">
                             <label class="radio-option">
                                 <input type="radio" bind:group={importMode} value="new" />
                                 <span class="radio-label">
-                                    <strong>Create New Tree</strong>
-                                    <span class="radio-description">Import data into a new family tree</span>
+                                    <strong>{t('createNewTree')}</strong>
+                                    <span class="radio-description">{t('importNewDescription')}</span>
                                 </span>
                             </label>
                             <label class="radio-option">
                                 <input type="radio" bind:group={importMode} value="existing" />
                                 <span class="radio-label">
-                                    <strong>Add to Existing Tree</strong>
-                                    <span class="radio-description">Import data into an existing family tree</span>
+                                    <strong>{t('addExistingTree')}</strong>
+                                    <span class="radio-description">{t('importExistingDescription')}</span>
                                 </span>
                             </label>
                         </div>
@@ -244,42 +245,42 @@
 
                     {#if importMode === 'new'}
                         <div class="form-section">
-                            <label class="label" for="tree-name">Tree Name</label>
+                            <label class="label" for="tree-name">{t('name')}</label>
                             <input
                                 type="text"
                                 id="tree-name"
                                 class="input"
                                 bind:value={treeName}
-                                placeholder="Enter tree name"
+                                placeholder={t('enterTreeName')}
                                 maxlength="100"
                             />
                         </div>
 
                         <div class="form-section">
-                            <label class="label" for="tree-description">Description (optional)</label>
+                            <label class="label" for="tree-description">{t('descriptionOptional')}</label>
                             <textarea
                                 id="tree-description"
                                 class="input"
                                 bind:value={treeDescription}
-                                placeholder="Enter description"
+                                placeholder={t('enterDescription')}
                                 rows="3"
                                 maxlength="500"
                             ></textarea>
                         </div>
                     {:else}
                         <div class="form-section">
-                            <label class="label" for="tree-select">Select Tree</label>
+                            <label class="label" for="tree-select">{t('selectTree')}</label>
                             {#if isLoadingTrees}
-                                <p class="helper-text">Loading trees...</p>
+                                <p class="helper-text">{t('loadingTrees')}</p>
                             {:else if existingTrees.length === 0}
-                                <p class="helper-text">No existing trees found. Create a new tree instead.</p>
+                                <p class="helper-text">{t('noExistingTrees')}</p>
                             {:else}
                                 <select
                                     id="tree-select"
                                     class="input"
                                     bind:value={selectedTreeId}
                                 >
-                                    <option value="">Select a tree...</option>
+                                    <option value="">{t('selectATree')}</option>
                                     {#each existingTrees as tree}
                                         <option value={tree.id}>
                                             {tree.name} ({tree.personCount} persons)
@@ -298,14 +299,14 @@
 
                     <div class="button-row">
                         <button class="btn btn-secondary" onclick={() => step = 'upload'}>
-                            Back
+                            {t('back')}
                         </button>
                         <button
                             class="btn btn-primary"
                             onclick={validateImport}
                             disabled={!canValidate || isValidating}
                         >
-                            {isValidating ? 'Validating...' : 'Validate & Continue'}
+                            {isValidating ? t('validating') : t('validateContinue')}
                         </button>
                     </div>
                 </div>
@@ -319,15 +320,15 @@
 
         {:else if step === 'review'}
             <div class="card">
-                <h2>Review Import</h2>
+                <h2>{t('reviewImport')}</h2>
 
                 <div class="success-banner">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
                     <div>
-                        <strong>Validation Passed</strong>
-                        <p>Your import file is valid and ready to import.</p>
+                        <strong>{t('validationPassed')}</strong>
+                        <p>{t('importValid')}</p>
                     </div>
                 </div>
 
@@ -335,11 +336,11 @@
                     <div class="summary-grid">
                         <div class="summary-item">
                             <span class="summary-value">{validationResult.summary.personsCreated}</span>
-                            <span class="summary-label">Persons to Create</span>
+                            <span class="summary-label">{t('personsToCreate')}</span>
                         </div>
                         <div class="summary-item">
                             <span class="summary-value">{validationResult.summary.relationshipsCreated}</span>
-                            <span class="summary-label">Relationships to Create</span>
+                            <span class="summary-label">{t('relationshipsToCreate')}</span>
                         </div>
                     </div>
 
@@ -360,14 +361,14 @@
 
                 <div class="button-row">
                     <button class="btn btn-secondary" onclick={() => step = 'configure'}>
-                        Back
+                        {t('back')}
                     </button>
                     <button
                         class="btn btn-primary"
                         onclick={executeImport}
                         disabled={isImporting}
                     >
-                        {isImporting ? 'Importing...' : 'Import Now'}
+                        {isImporting ? t('importing') : t('importNow')}
                     </button>
                 </div>
             </div>
@@ -380,7 +381,7 @@
                     </svg>
                 </div>
 
-                <h2>Import Complete!</h2>
+                <h2>{t('importComplete')}</h2>
 
                 {#if importResult?.summary}
                     <p class="complete-summary">

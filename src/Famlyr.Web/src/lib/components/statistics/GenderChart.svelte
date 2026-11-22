@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { GenderStats } from '$lib/types/api';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         stats: GenderStats;
@@ -10,10 +11,10 @@
     const total = $derived(stats.male + stats.female + stats.other + stats.unknown);
 
     const segments = $derived([
-        { label: 'Male', value: stats.male, color: 'var(--color-blue-500)' },
-        { label: 'Female', value: stats.female, color: 'var(--color-pink-500)' },
-        { label: 'Other', value: stats.other, color: 'var(--color-purple-500)' },
-        { label: 'Unknown', value: stats.unknown, color: 'var(--color-neutral-400)' }
+        { label: t('male'), value: stats.male, color: 'var(--color-blue-500)' },
+        { label: t('female'), value: stats.female, color: 'var(--color-pink-500)' },
+        { label: t('other'), value: stats.other, color: 'var(--color-purple-500)' },
+        { label: t('unknownGender'), value: stats.unknown, color: 'var(--color-neutral-400)' }
     ].filter((s) => s.value > 0));
 
     function getPercent(value: number): number {
@@ -62,18 +63,18 @@
 </script>
 
 <div class="gender-chart">
-    <h3 class="chart-title">Gender Distribution</h3>
+    <h3 class="chart-title">{t('genderDistribution')}</h3>
 
     {#if total === 0}
-        <p class="empty-message">No data available</p>
+        <p class="empty-message">{t('noData')}</p>
     {:else}
         <div class="chart-content">
-            <svg viewBox="0 0 200 200" role="img" aria-label="Gender distribution chart" class="donut">
+            <svg viewBox="0 0 200 200" role="img" aria-label={t('genderDistribution')} class="donut">
                 {#each paths() as segment}
                     <path d={segment.path} fill={segment.color} />
                 {/each}
                 <text x="100" y="95" class="center-value" text-anchor="middle">{total}</text>
-                <text x="100" y="115" class="center-label" text-anchor="middle">Total</text>
+                <text x="100" y="115" class="center-label" text-anchor="middle">{t('total')}</text>
             </svg>
 
             <div class="legend">

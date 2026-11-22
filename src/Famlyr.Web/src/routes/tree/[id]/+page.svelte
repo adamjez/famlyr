@@ -2,6 +2,7 @@
     import { browser } from '$app/environment';
     import { page } from '$app/stores';
     import type { PageData } from './$types';
+    import { t } from '$lib/i18n.svelte';
 
     let { data }: { data: PageData } = $props();
 
@@ -19,17 +20,17 @@
 </script>
 
 <svelte:head>
-    <title>{data.tree.name} - Family Tree | Famlyr</title>
+    <title>{data.tree.name} - {t('familyTrees')} | Famlyr</title>
 </svelte:head>
 
 <div class="space-y-6">
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-sm text-neutral-500">
-        <a href="/" class="hover:text-primary-600 transition-colors">Family Trees</a>
+        <a href="/" class="hover:text-primary-600 transition-colors">{t('familyTrees')}</a>
         <span>/</span>
         <a href="/trees/{data.tree.id}" class="hover:text-primary-600 transition-colors">{data.tree.name}</a>
         <span>/</span>
-        <span class="text-neutral-900">Tree View</span>
+        <span class="text-neutral-900">{t('treeView')}</span>
     </nav>
 
     <header class="flex items-center justify-between">
@@ -39,14 +40,14 @@
                 <p class="mt-1 text-neutral-600">{data.tree.description}</p>
             {/if}
         </div>
-        <a href="/trees/{data.tree.id}" class="btn btn-secondary">Back to Details</a>
+        <a href="/trees/{data.tree.id}" class="btn btn-secondary">{t('backToDetails')}</a>
     </header>
 
     {#if TreeViewer}
         <TreeViewer tree={data.tree} initialFocusPersonId={focusPersonId} />
     {:else}
         <div class="tree-loading">
-            <p>Loading tree viewer...</p>
+            <p>{t('loadingTree')}</p>
         </div>
     {/if}
 </div>
