@@ -1,5 +1,6 @@
 <script lang="ts">
-    import type { FamilyTreeModel, PersonModel, RelationshipModel } from '$lib/types/api';
+    import { buildFamilyBranches, type Branch } from '$lib/services/tree/branchNavigator';
+    import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
 
     interface Props {
         tree: FamilyTreeModel;
@@ -8,19 +9,8 @@
         mobileOpen?: boolean;
     }
 
-    interface Branch {
-        id: string;
-        label: string;
-        count: number;
-        representativeId: string;
-    }
-
     let { tree, onSelect, onClose, mobileOpen = false }: Props = $props();
     let mode = $state<'surname' | 'family'>('surname');
-
-    function fullName(person: PersonModel): string {
-        return [person.firstName, person.lastName].filter(Boolean).join(' ') || 'Unknown name';
-    }
 
     function buildSurnameBranches(persons: PersonModel[]): Branch[] {
         const groups = new Map<string, PersonModel[]>();
@@ -50,93 +40,6 @@
                 };
             })
             .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-    }
-
-    function buildFamilyBranches(
-        persons: PersonModel[],
-        relationships: RelationshipModel[]
-    ): Branch[] {
-        const spouseOf = new Map<string, string[]>();
-        const parentOf = new Map<string, string[]>();
-
-        for (const relationship of relationships) {
-            if (relationship.type === 'Spouse') {
-                const subjectSpouses = spouseOf.get(relationship.subjectId) ?? [];
-                subjectSpouses.push(relationship.relativeId);
-                spouseOf.set(relationship.subjectId, subjectSpouses);
-
-                const relativeSpouses = spouseOf.get(relationship.relativeId) ?? [];
-                relativeSpouses.push(relationship.subjectId);
-                spouseOf.set(relationship.relativeId, relativeSpouses);
-            } else if (relationship.type === 'Parent') {
-                const children = parentOf.get(relationship.relativeId) ?? [];
-                children.push(relationship.subjectId);
-                parentOf.set(relationship.relativeId, children);
-            }
-        }
-
-        const personById = new Map(persons.map(person => [person.id, person]));
-        const rootIds = persons
-            .filter(person => {
-                return !relationships.some(
-                    relationship =>
-                        relationship.type === 'Parent' && relationship.subjectId === person.id
-                );
-            })
-            .map(person => person.id);
-
-        const roots = rootIds.length > 0 ? rootIds : persons.map(person => person.id);
-        const visited = new Set<string>();
-        const branches: Branch[] = [];
-
-        for (const rootId of roots) {
-            if (visited.has(rootId)) continue;
-
-            const spouseIds = spouseOf.get(rootId) ?? [];
-            const spouseId = spouseIds.find(id => roots.includes(id));
-            const memberIds = spouseId
-                ? [rootId, spouseId].sort()
-                : [rootId];
-
-            for (const memberId of memberIds) visited.add(memberId);
-
-            const memberSet = new Set<string>(memberIds);
-            const queue = [...memberIds];
-            while (queue.length > 0) {
-                const personId = queue.shift();
-                if (!personId) continue;
-
-                for (const childId of parentOf.get(personId) ?? []) {
-                    if (!memberSet.has(childId)) {
-                        memberSet.add(childId);
-                        queue.push(childId);
-                    }
-                }
-                for (const spouseIdOfPerson of spouseOf.get(personId) ?? []) {
-                    if (!memberSet.has(spouseIdOfPerson)) {
-                        memberSet.add(spouseIdOfPerson);
-                        queue.push(spouseIdOfPerson);
-                    }
-                }
-            }
-
-            const primary = personById.get(rootId);
-            const spouse = spouseId ? personById.get(spouseId) : null;
-            const label = spouse
-                ? `${fullName(primary!)} & ${fullName(spouse)}`
-                : primary
-                    ? fullName(primary)
-                    : 'Unknown family';
-
-            branches.push({
-                id: memberIds.join(':'),
-                label,
-                count: memberSet.size,
-                representativeId: rootId
-            });
-        }
-
-        return branches.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
     }
 
     const branches = $derived.by(() => {
