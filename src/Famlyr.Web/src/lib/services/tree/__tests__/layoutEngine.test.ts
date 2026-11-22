@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { calculateLayout, _testInternals } from '../layoutEngine';
+import { calculateLayout, getFocusLineageIds, _testInternals } from '../layoutEngine';
 import type { TreeLayout, TreeNode, LayoutConfig } from '$lib/types/tree';
 import { DEFAULT_LAYOUT_CONFIG } from '$lib/types/tree';
 import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
@@ -1296,6 +1296,23 @@ describe('layoutEngine', () => {
                     `Grandparents not centered over their children (gp=${gpCenter}, children=${childrenOfGP}, offset=${Math.abs(gpCenter - childrenOfGP)}px)`
                 ).toBeLessThanOrEqual(5);
             });
+        });
+    });
+
+    describe('large trees', () => {
+        it('lays out a focused 10,000-person lineage without recursive traversal or repeated expansion work', () => {
+            const persons = Array.from({ length: 10_000 }, (_, i) => person({ id: `person-${i}` }));
+            const relationships = Array.from({ length: persons.length - 1 }, (_, i) =>
+                parentRel(`person-${i + 1}`, `person-${i}`)
+            );
+            const t = tree(persons, relationships);
+            const focusId = persons[persons.length - 1].id;
+            const expandedNodeIds = new Set(getFocusLineageIds(t, focusId));
+
+            const layout = calculateLayout(t, focusId, { expandedNodeIds });
+
+            expect(visibleNodes(layout)).toHaveLength(persons.length);
+            expect(nodeById(layout, focusId).layer).toBeGreaterThan(nodeById(layout, persons[0].id).layer);
         });
     });
 

@@ -95,10 +95,11 @@ function assignLayers(
     }
 
     const queue: { id: string; layer: number }[] = [{ id: startPersonId, layer: 0 }];
+    let queueIndex = 0;
 
-    while (true) {
-        while (queue.length > 0) {
-            const { id, layer } = queue.shift()!;
+    const processQueue = () => {
+        while (queueIndex < queue.length) {
+            const { id, layer } = queue[queueIndex++];
 
             if (visited.has(id)) continue;
             visited.add(id);
@@ -134,29 +135,22 @@ function assignLayers(
                 }
             }
         }
+    };
 
-        // Find next disconnected component root
-        let found = false;
-        for (const person of persons) {
-            if (!visited.has(person.id)) {
-                const parents = maps.childOf.get(person.id) ?? [];
-                if (parents.length === 0) {
-                    queue.push({ id: person.id, layer: 0 });
-                    found = true;
-                    break;
-                }
-            }
+    processQueue();
+
+    // Visit disconnected components without rescanning the entire person list for each one.
+    for (const person of persons) {
+        if (!visited.has(person.id) && (maps.childOf.get(person.id) ?? []).length === 0) {
+            queue.push({ id: person.id, layer: 0 });
+            processQueue();
         }
-        if (!found) {
-            for (const person of persons) {
-                if (!visited.has(person.id)) {
-                    queue.push({ id: person.id, layer: 0 });
-                    found = true;
-                    break;
-                }
-            }
+    }
+    for (const person of persons) {
+        if (!visited.has(person.id)) {
+            queue.push({ id: person.id, layer: 0 });
+            processQueue();
         }
-        if (!found) break;
     }
 
     for (const person of persons) {
@@ -317,11 +311,13 @@ function createFamilyNodes(
 ): Map<string, FamilyNode> {
     const familyNodes = new Map<string, FamilyNode>();
 
-    function processCluster(cluster: FamilyCluster): void {
-        if (cluster.childIds.length === 0) return;
+    const stack = [...clusterTree.roots].reverse();
+    while (stack.length > 0) {
+        const cluster = stack.pop()!;
+        if (cluster.childIds.length === 0) continue;
 
         const visibleChildren = cluster.childIds.filter(id => visibleNodeIds.has(id));
-        if (visibleChildren.length === 0) return;
+        if (visibleChildren.length === 0) continue;
 
         const familyNodeId = cluster.parentIds.length === 2
             ? `family-${cluster.parentIds.sort().join('-')}`
@@ -337,13 +333,7 @@ function createFamilyNodes(
             });
         }
 
-        for (const childCluster of cluster.childClusters) {
-            processCluster(childCluster);
-        }
-    }
-
-    for (const root of clusterTree.roots) {
-        processCluster(root);
+        stack.push(...cluster.childClusters.slice().reverse());
     }
 
     return familyNodes;
@@ -530,21 +520,45 @@ function computeOrderKeys(
     function visit(id: string): number {
         const existing = key.get(id);
         if (existing !== undefined) return existing;
-        if (visiting.has(id)) return nextSlot; // guard against relationship cycles
-        visiting.add(id);
+        if (visiting.has(id)) return nextSlot;
 
-        const children = (maps.parentOf.get(id) ?? []).filter(c => visibleNodeIds.has(c));
-        let k: number;
-        if (children.length === 0) {
-            k = nextSlot++;
-        } else {
-            let sum = 0;
-            for (const child of children) sum += visit(child);
-            k = sum / children.length;
+        const stack: { id: string; children: string[]; nextChildIndex: number; sum: number }[] = [];
+        const push = (nodeId: string) => {
+            visiting.add(nodeId);
+            stack.push({
+                id: nodeId,
+                children: (maps.parentOf.get(nodeId) ?? []).filter(c => visibleNodeIds.has(c)),
+                nextChildIndex: 0,
+                sum: 0
+            });
+        };
+        push(id);
+
+        while (stack.length > 0) {
+            const frame = stack[stack.length - 1];
+            if (frame.nextChildIndex < frame.children.length) {
+                const childId = frame.children[frame.nextChildIndex++];
+                const childKey = key.get(childId);
+                if (childKey !== undefined) {
+                    frame.sum += childKey;
+                } else if (visiting.has(childId)) {
+                    frame.sum += nextSlot;
+                } else {
+                    push(childId);
+                }
+                continue;
+            }
+
+            const value = frame.children.length === 0
+                ? nextSlot++
+                : frame.sum / frame.children.length;
+            key.set(frame.id, value);
+            visiting.delete(frame.id);
+            stack.pop();
+            if (stack.length > 0) stack[stack.length - 1].sum += value;
         }
-        key.set(id, k);
-        visiting.delete(id);
-        return k;
+
+        return key.get(id)!;
     }
 
     // Drive from lineage tops (no visible parents) that actually have children,
@@ -1044,31 +1058,34 @@ function calculateDescendantCounts(
     const counts = new Map<string, number>();
     const visited = new Set<string>();
 
-    function countDescendants(personId: string): number {
-        if (counts.has(personId)) {
-            return counts.get(personId)!;
-        }
-
-        if (visited.has(personId)) {
-            return 0;
-        }
-        visited.add(personId);
-
-        const children = maps.parentOf.get(personId) ?? [];
-        let total = children.length;
-
-        for (const childId of children) {
-            total += countDescendants(childId);
-        }
-
-        counts.set(personId, total);
-        visited.delete(personId);
-        return total;
-    }
-
     for (const person of persons) {
-        if (!counts.has(person.id)) {
-            countDescendants(person.id);
+        if (counts.has(person.id)) continue;
+
+        const stack: { id: string; children: string[]; nextChildIndex: number; total: number }[] = [];
+        const push = (id: string) => {
+            visited.add(id);
+            const children = maps.parentOf.get(id) ?? [];
+            stack.push({ id, children, nextChildIndex: 0, total: children.length });
+        };
+        push(person.id);
+
+        while (stack.length > 0) {
+            const frame = stack[stack.length - 1];
+            if (frame.nextChildIndex < frame.children.length) {
+                const childId = frame.children[frame.nextChildIndex++];
+                const childCount = counts.get(childId);
+                if (childCount !== undefined) {
+                    frame.total += childCount;
+                } else if (!visited.has(childId)) {
+                    push(childId);
+                }
+                continue;
+            }
+
+            counts.set(frame.id, frame.total);
+            visited.delete(frame.id);
+            stack.pop();
+            if (stack.length > 0) stack[stack.length - 1].total += frame.total;
         }
     }
 
@@ -1086,31 +1103,20 @@ function markFocusLineage(
     const lineage = new Set<string>();
     const visited = new Set<string>();
 
-    function markAncestors(personId: string) {
-        if (visited.has(personId)) return;
-        visited.add(personId);
-        lineage.add(personId);
-
-        const parents = maps.childOf.get(personId) ?? [];
-        for (const parentId of parents) {
-            markAncestors(parentId);
+    const markConnected = (startId: string, neighbors: Map<string, string[]>) => {
+        const stack = [startId];
+        while (stack.length > 0) {
+            const personId = stack.pop()!;
+            if (visited.has(personId)) continue;
+            visited.add(personId);
+            lineage.add(personId);
+            stack.push(...(neighbors.get(personId) ?? []));
         }
-    }
+    };
 
-    function markDescendants(personId: string) {
-        if (visited.has(personId)) return;
-        visited.add(personId);
-        lineage.add(personId);
-
-        const children = maps.parentOf.get(personId) ?? [];
-        for (const childId of children) {
-            markDescendants(childId);
-        }
-    }
-
-    markAncestors(focusPersonId);
+    markConnected(focusPersonId, maps.childOf);
     visited.clear();
-    markDescendants(focusPersonId);
+    markConnected(focusPersonId, maps.parentOf);
 
     const spouses = maps.spouseOf.get(focusPersonId) ?? [];
     for (const spouseId of spouses) {
@@ -1143,8 +1149,10 @@ function determineVisibleNodes(
 
     // 2. Add all ancestors of focus person (up to root)
     // Use separate tracking to ensure we process all ancestor branches
-    function addAncestors(personId: string) {
-        if (ancestorsProcessed.has(personId)) return;
+    const ancestorStack = [focusPersonId];
+    while (ancestorStack.length > 0) {
+        const personId = ancestorStack.pop()!;
+        if (ancestorsProcessed.has(personId)) continue;
         ancestorsProcessed.add(personId);
 
         const parents = maps.childOf.get(personId) ?? [];
@@ -1155,11 +1163,10 @@ function determineVisibleNodes(
             for (const spouseId of spouses) {
                 visible.add(spouseId);
             }
-            // Always recurse to get this parent's ancestors
-            addAncestors(parentId);
+            // Always visit every ancestor branch
+            ancestorStack.push(parentId);
         }
     }
-    addAncestors(focusPersonId);
 
     // 3. Add direct children of focus person
     const focusChildren = maps.parentOf.get(focusPersonId) ?? [];
@@ -1173,27 +1180,24 @@ function determineVisibleNodes(
     }
 
     // 4. Handle manually expanded nodes - show their children recursively
-    function addExpandedDescendants(personId: string) {
-        if (!expandedNodeIds.has(personId)) return;
+    const expandedProcessed = new Set<string>();
+    const expandedStack = Array.from(visible);
+    while (expandedStack.length > 0) {
+        const personId = expandedStack.pop()!;
+        if (!expandedNodeIds.has(personId) || expandedProcessed.has(personId)) continue;
+        expandedProcessed.add(personId);
 
         const children = maps.parentOf.get(personId) ?? [];
         for (const childId of children) {
-            if (!visible.has(childId)) {
-                visible.add(childId);
-                // Add child's spouses
-                const childSpouses = maps.spouseOf.get(childId) ?? [];
-                for (const spouseId of childSpouses) {
-                    visible.add(spouseId);
-                }
+            visible.add(childId);
+            // Add child's spouses
+            const childSpouses = maps.spouseOf.get(childId) ?? [];
+            for (const spouseId of childSpouses) {
+                visible.add(spouseId);
             }
-            // Always check if this child is expanded (even if already visible)
-            addExpandedDescendants(childId);
+            // Process each expanded descendant once, even when already visible.
+            expandedStack.push(childId);
         }
-    }
-
-    // Check all visible nodes for expansion
-    for (const personId of Array.from(visible)) {
-        addExpandedDescendants(personId);
     }
 
     return visible;
