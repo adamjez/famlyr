@@ -4,6 +4,12 @@
     let controlsElement: HTMLDivElement;
     let isFullscreen = $state(false);
 
+    interface Props {
+        onShowWholeTree: () => void;
+    }
+
+    let { onShowWholeTree }: Props = $props();
+
     function zoomIn() {
         const current = treeViewState.viewport.zoom;
         treeViewState.zoom(current * 1.2);
@@ -15,7 +21,7 @@
     }
 
     function resetView() {
-        treeViewState.resetViewport();
+        onShowWholeTree();
     }
 
     async function toggleFullscreen() {
@@ -39,6 +45,18 @@
 <svelte:document onfullscreenchange={handleFullscreenChange} />
 
 <div class="tree-controls" bind:this={controlsElement}>
+    <button class="control-btn whole-tree-btn" onclick={onShowWholeTree} aria-label="Show entire family tree" title="Celý rodokmen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="12" cy="7" r="1.5" />
+            <circle cx="7" cy="17" r="1.5" />
+            <circle cx="17" cy="17" r="1.5" />
+            <line x1="12" y1="9" x2="12" y2="12" />
+            <line x1="12" y1="12" x2="7" y2="15" />
+            <line x1="12" y1="12" x2="17" y2="15" />
+        </svg>
+    </button>
+
     <button class="control-btn" onclick={zoomIn} aria-label="Zoom in">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8" />

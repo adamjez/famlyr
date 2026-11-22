@@ -77,6 +77,15 @@
         handleFoldToggle(nodeId);
     }
 
+    export function showWholeTree() {
+        treeViewState.setFocusPerson(null);
+        treeViewState.selectPerson(null);
+        treeViewState.resetFoldState([]);
+        recalculateLayout(new Set(), true);
+        treeViewState.fitToScreen();
+        renderer?.updateViewport(treeViewState.viewport);
+    }
+
     const gestureHandler = createGestureHandler({
         onPan: (deltaX, deltaY) => {
             treeViewState.pan(deltaX, deltaY);

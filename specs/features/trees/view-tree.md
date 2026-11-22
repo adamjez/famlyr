@@ -54,6 +54,7 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 
 #### Navigation
 - [x] Zoom in/out with mouse wheel or trackpad
+- [x] "Celý rodokmen" clears focus and folded subtrees, then fits the complete layout to screen
 - [x] Pan the tree by clicking and dragging
 - [ ] Pinch-to-zoom gesture on touch devices
 - [ ] Two-finger pan gesture on touch devices
@@ -88,10 +89,10 @@ To handle large families efficiently, the viewer implements a **sibling folding 
 - [ ] Handle persons with unknown birth dates gracefully (separate "Unknown" band)
 
 #### Mini-map
-- [ ] Show overview of entire tree structure in corner
-- [ ] Highlight current viewport position as a rectangle
-- [ ] Click on mini-map to navigate to that area
-- [ ] Toggle mini-map visibility with button (default: hidden on mobile, visible on desktop)
+- [x] Show overview of entire tree structure in corner
+- [x] Highlight current viewport position as a rectangle
+- [x] Click on mini-map to navigate to that area
+- [x] Toggle mini-map visibility with button (default: hidden on mobile, visible on desktop)
 
 #### Search
 - [x] Search bar to find persons by first name or last name

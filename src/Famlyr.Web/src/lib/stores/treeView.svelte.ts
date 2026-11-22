@@ -218,6 +218,16 @@ function createTreeViewState() {
             viewport = { ...viewport, x: viewport.x + deltaX, y: viewport.y + deltaY };
         },
 
+        centerViewport(worldX: number, worldY: number) {
+            if (viewport.width === 0 || viewport.height === 0) return;
+
+            animateViewport(
+                -worldX * viewport.zoom,
+                -worldY * viewport.zoom,
+                viewport.zoom
+            );
+        },
+
         zoom(newZoom: number, centerX?: number, centerY?: number) {
             const minZoom = Math.min(fitZoom, ZOOM_MIN);
             const clampedZoom = Math.max(minZoom, Math.min(ZOOM_MAX, newZoom));
