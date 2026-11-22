@@ -1,8 +1,14 @@
 <script lang="ts">
     import '../app.css';
     import Toast from '$lib/components/Toast.svelte';
-    import { getLocale, setLocale, t } from '$lib/i18n.svelte';
+    import { getLocale, setLocale, t, type Locale } from '$lib/i18n.svelte';
     let { children } = $props();
+    let languageMenu: HTMLDetailsElement;
+
+    function chooseLocale(nextLocale: Locale) {
+        setLocale(nextLocale);
+        languageMenu.open = false;
+    }
 
     $effect(() => {
         document.documentElement.lang = getLocale();
@@ -25,18 +31,39 @@
                         {t('import')}
                     </a>
                 </div>
-                <label class="flex items-center gap-2 text-sm text-neutral-600">
-                    <span>{t('language')}</span>
-                    <select
-                        class="rounded-md border border-neutral-300 bg-white px-2 py-1 text-neutral-800"
-                        value={getLocale()}
-                        onchange={(event) => setLocale(event.currentTarget.value as 'en' | 'cs')}
-                        aria-label={t('language')}
-                    >
-                        <option value="en">{t('english')}</option>
-                        <option value="cs">{t('czech')}</option>
-                    </select>
-                </label>
+                <details class="language-menu" bind:this={languageMenu}>
+                    <summary class="language-trigger" aria-label={t('language')}>
+                        <img
+                            src={getLocale() === 'en' ? '/flags/gb.svg' : '/flags/cz.svg'}
+                            alt=""
+                            class="language-flag"
+                        />
+                        <span>{getLocale() === 'en' ? t('english') : t('czech')}</span>
+                        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                            <path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </summary>
+                    <div class="language-options" role="group" aria-label={t('language')}>
+                        <button
+                            type="button"
+                            class="language-option"
+                            aria-pressed={getLocale() === 'en'}
+                            onclick={() => chooseLocale('en')}
+                        >
+                            <img src="/flags/gb.svg" alt="" class="language-flag" />
+                            <span>{t('english')}</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="language-option"
+                            aria-pressed={getLocale() === 'cs'}
+                            onclick={() => chooseLocale('cs')}
+                        >
+                            <img src="/flags/cz.svg" alt="" class="language-flag" />
+                            <span>{t('czech')}</span>
+                        </button>
+                    </div>
+                </details>
             </div>
         </nav>
     </header>
@@ -47,3 +74,76 @@
 </div>
 
 <Toast />
+
+<style>
+    .language-menu {
+        position: relative;
+        color: var(--color-neutral-700);
+        font-size: 0.875rem;
+    }
+
+    .language-trigger {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 2.25rem;
+        padding: 0.375rem 0.625rem;
+        border: 1px solid var(--color-neutral-300);
+        border-radius: 0.5rem;
+        background: white;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .language-trigger::-webkit-details-marker {
+        display: none;
+    }
+
+    .language-trigger svg {
+        width: 1rem;
+        height: 1rem;
+        color: var(--color-neutral-500);
+    }
+
+    .language-flag {
+        display: block;
+        width: 1.5rem;
+        height: 1rem;
+        flex: none;
+        border: 1px solid rgb(0 0 0 / 0.1);
+        border-radius: 0.125rem;
+        object-fit: cover;
+    }
+
+    .language-options {
+        position: absolute;
+        top: calc(100% + 0.375rem);
+        right: 0;
+        z-index: 20;
+        min-width: 10rem;
+        padding: 0.25rem;
+        border: 1px solid var(--color-neutral-200);
+        border-radius: 0.5rem;
+        background: white;
+        box-shadow: 0 8px 20px rgb(0 0 0 / 0.12);
+    }
+
+    .language-option {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        width: 100%;
+        padding: 0.5rem;
+        border: 0;
+        border-radius: 0.375rem;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .language-option:hover,
+    .language-option[aria-pressed='true'] {
+        background: var(--color-neutral-100);
+    }
+</style>
