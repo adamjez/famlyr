@@ -13,14 +13,28 @@
         initialFocusPersonId?: string | null;
     }
 
+    const MINI_MAP_DEFAULT_VISIBILITY_LIMIT = 1_000;
+
     let { tree, initialFocusPersonId = null }: Props = $props();
 
     let canvasRef: TreeCanvas | null = $state(null);
     let searchRef: TreeSearch | null = $state(null);
-    let showMiniMap = $state(true);
+    let miniMapVisibilityOverride = $state<boolean | null>(null);
+    const showMiniMap = $derived(
+        miniMapVisibilityOverride ?? tree.persons.length <= MINI_MAP_DEFAULT_VISIBILITY_LIMIT
+    );
     let showMobileMiniMap = $state(false);
     let showMobileBranches = $state(false);
+    let activeTreeId: string | null = null;
 
+    $effect(() => {
+        if (tree.id === activeTreeId) return;
+
+        activeTreeId = tree.id;
+        miniMapVisibilityOverride = null;
+        showMobileMiniMap = false;
+        showMobileBranches = false;
+    });
 
     function handleFocus(personId: string) {
         canvasRef?.setFocusPerson(personId);
@@ -80,7 +94,7 @@
         <TreeMiniMap
             mobileOpen={showMobileMiniMap}
             onClose={() => {
-                showMiniMap = false;
+                miniMapVisibilityOverride = false;
                 showMobileMiniMap = false;
             }}
         />
@@ -91,7 +105,7 @@
             class="mini-map-toggle"
             type="button"
             aria-label="Show mini-map"
-            onclick={() => (showMiniMap = true)}
+            onclick={() => (miniMapVisibilityOverride = true)}
         >
             Map
         </button>
