@@ -117,11 +117,22 @@
         treeViewState.resetFoldState(focusLineageIds);
         currentLOD = getLODLevel(treeViewState.viewport.zoom);
 
-        const layout = calculateLayout(tree, initialFocusPersonId ?? null, {
+        let layout = calculateLayout(tree, initialFocusPersonId ?? null, {
             expandedNodeIds: initialExpandedSet,
             lod: currentLOD
         });
         treeViewState.setLayout(layout);
+        treeViewState.fitToScreen();
+
+        const fittedLOD = getLODLevel(treeViewState.viewport.zoom);
+        if (fittedLOD !== currentLOD) {
+            currentLOD = fittedLOD;
+            layout = calculateLayout(tree, initialFocusPersonId ?? null, {
+                expandedNodeIds: initialExpandedSet,
+                lod: currentLOD
+            });
+            treeViewState.setLayout(layout);
+        }
 
         renderer = new TreeRenderer({
             onNodeClick: (nodeId) => {
@@ -131,14 +142,12 @@
                 handleFoldToggle(nodeId);
             }
         });
+        renderer.setLOD(currentLOD);
 
         await renderer.initialize(canvasElement, width, height);
 
-        if (treeViewState.layout) {
-            renderer.render(treeViewState.layout);
-            treeViewState.fitToScreen();
-            renderer.updateViewport(treeViewState.viewport);
-        }
+        renderer.render(layout);
+        renderer.updateViewport(treeViewState.viewport);
 
         resizeObserver = new ResizeObserver((entries) => {
             const entry = entries[0];
