@@ -51,6 +51,7 @@
     }
 
     function selectPerson(personId: string) {
+        onFocus(personId);
         treeViewState.selectPerson(personId);
     }
 

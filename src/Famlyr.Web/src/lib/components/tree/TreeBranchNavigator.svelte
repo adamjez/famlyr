@@ -6,10 +6,9 @@
         tree: FamilyTreeModel;
         onSelect: (personId: string) => void;
         onClose: () => void;
-        mobileOpen?: boolean;
     }
 
-    let { tree, onSelect, onClose, mobileOpen = false }: Props = $props();
+    let { tree, onSelect, onClose }: Props = $props();
     let mode = $state<'surname' | 'family'>('surname');
 
     function buildSurnameBranches(persons: PersonModel[]): Branch[] {
@@ -52,11 +51,11 @@
 
     function selectBranch(branch: Branch) {
         onSelect(branch.representativeId);
-        if (mobileOpen) onClose();
+        onClose();
     }
 </script>
 
-<aside class="branch-navigator" class:branch-navigator-mobile-open={mobileOpen} aria-label="Tree branches">
+<aside class="branch-navigator" aria-label="Tree branches">
     <div class="branch-header">
         <span>Branches</span>
         <div class="branch-modes" aria-label="Branch grouping">
@@ -107,31 +106,42 @@
 <style>
     .branch-navigator {
         position: absolute;
-        top: 68px;
-        right: 16px;
-        z-index: 12;
-        width: 260px;
+        inset: 0 0 0 auto;
+        z-index: 20;
+        display: flex;
+        width: 320px;
+        height: 100%;
+        flex-direction: column;
         overflow: hidden;
-        border: 1px solid var(--color-neutral-300);
-        border-radius: 10px;
-        background: rgb(255 255 255 / 0.96);
-        box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+        border-left: 1px solid var(--color-neutral-200);
+        background-color: white;
+        box-shadow: -4px 0 6px -1px rgb(0 0 0 / 0.1);
+        animation: slideIn 200ms ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+        }
+        to {
+            transform: translateX(0);
+        }
     }
 
     .branch-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        min-height: 40px;
-        padding: 6px 8px 6px 10px;
+        gap: 8px;
+        min-height: 56px;
+        padding: 12px 16px;
         border-bottom: 1px solid var(--color-neutral-200);
         color: var(--color-neutral-800);
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 1.125rem;
+        font-weight: 600;
     }
 
     .close-button {
-        display: none;
         width: 28px;
         height: 28px;
         padding: 0;
@@ -151,6 +161,7 @@
     .branch-modes {
         display: flex;
         gap: 3px;
+        margin-left: auto;
     }
 
     .branch-modes button {
@@ -177,9 +188,9 @@
     }
 
     .branch-list {
-        max-height: 280px;
+        flex: 1;
         overflow-y: auto;
-        padding: 4px;
+        padding: 12px 16px;
     }
 
     .branch-item {
@@ -216,40 +227,33 @@
 
     @media (max-width: 639px) {
         .branch-navigator {
-            display: none;
-        }
-
-        .branch-navigator.branch-navigator-mobile-open {
             inset: 8px;
-            z-index: 20;
-            display: flex;
             width: auto;
             height: auto;
-            flex-direction: column;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
         }
 
-        .branch-navigator-mobile-open .branch-header {
+        .branch-header {
             flex: 0 0 auto;
             gap: 8px;
         }
 
-        .branch-navigator-mobile-open .branch-header > span {
+        .branch-header > span {
             margin-right: auto;
         }
 
-        .branch-navigator-mobile-open .close-button {
+        .close-button {
             display: grid;
             flex: 0 0 auto;
         }
 
-        .branch-navigator-mobile-open .branch-list {
-            flex: 1;
-            max-height: none;
-            overflow-y: auto;
+        .branch-list {
             padding: 8px;
         }
 
-        .branch-navigator-mobile-open .branch-item {
+        .branch-item {
             min-height: 48px;
         }
     }

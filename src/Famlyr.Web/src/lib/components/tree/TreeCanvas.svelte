@@ -1,11 +1,18 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, untrack } from 'svelte';
     import { TreeRenderer } from '$lib/services/tree/treeRenderer';
-    import { calculateLayout, getFocusLineageIds } from '$lib/services/tree/layoutEngine';
+    import {
+        calculateLayout,
+        createTreeGraphIndex,
+        createTreeOverviewLayout,
+        getFocusLineageIds,
+        type TreeGraphIndex
+    } from '$lib/services/tree/layoutEngine';
     import { treeViewState } from '$lib/stores/treeView.svelte';
     import { createGestureHandler } from '$lib/services/tree/gestureHandler';
     import { getLODLevel, type LODLevel } from '$lib/types/tree';
     import type { FamilyTreeModel } from '$lib/types/api';
+    import type { TreeLayout } from '$lib/types/tree';
 
     interface Props {
         tree: FamilyTreeModel;
@@ -17,35 +24,85 @@
     let canvasElement: HTMLCanvasElement;
     let containerElement: HTMLDivElement;
     let renderer: TreeRenderer | null = null;
+    let graphIndex: TreeGraphIndex | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
     let isDragging = false;
     let lastPointerX = 0;
     let lastPointerY = 0;
     let currentLOD: LODLevel = 3;
+    const COARSE_FULL_TREE_LIMIT = 1_000;
+
+    function findViewportCenterNodeId(layout: TreeLayout, x: number, y: number, zoom: number): string | null {
+        const centerX = -x / zoom;
+        const centerY = -y / zoom;
+        let closestId: string | null = null;
+        let closestDistance = Infinity;
+
+        for (const node of layout.nodes.values()) {
+            if (!node.isVisible) continue;
+
+            const distance = Math.hypot(
+                node.position.x + node.width / 2 - centerX,
+                node.position.y + node.height / 2 - centerY
+            );
+            if (distance < closestDistance) {
+                closestId = node.id;
+                closestDistance = distance;
+            }
+        }
+
+        return closestId;
+    }
 
     function recalculateLayout(newExpandedNodeIds?: Set<string>, forceRecalc = false) {
         const currentTree = treeViewState.tree;
         const focusId = treeViewState.focusedPersonId;
         const expandedIds = newExpandedNodeIds ?? treeViewState.expandedNodeIds;
+        const currentGraphIndex = graphIndex;
         const newLOD = getLODLevel(treeViewState.viewport.zoom);
 
-        if (!currentTree || !renderer) {
+        if (!currentTree || !renderer || !currentGraphIndex) {
             return;
         }
 
         // Only recalculate if LOD changed or forced
         if (newLOD !== currentLOD || forceRecalc || newExpandedNodeIds) {
+            const nextIsCompactOverview = !focusId
+                && currentTree.persons.length > COARSE_FULL_TREE_LIMIT
+                && newLOD === 1;
+            const viewport = treeViewState.viewport;
+            const anchorId = newLOD !== currentLOD && treeViewState.layout
+                ? untrack(() => findViewportCenterNodeId(
+                    treeViewState.layout!,
+                    viewport.x,
+                    viewport.y,
+                    viewport.zoom
+                ))
+                : null;
             currentLOD = newLOD;
 
-            const layout = calculateLayout(currentTree, focusId, {
-                expandedNodeIds: expandedIds,
-                lod: currentLOD
+            const layout = untrack(() => {
+                const calculatedLayout = calculateLayout(currentTree, focusId, {
+                    expandedNodeIds: expandedIds,
+                    lod: currentLOD,
+                    graphIndex: currentGraphIndex
+                });
+                return nextIsCompactOverview
+                    ? createTreeOverviewLayout(calculatedLayout)
+                    : calculatedLayout;
             });
 
             treeViewState.setLayout(layout);
+            const anchor = anchorId ? layout.nodes.get(anchorId) : null;
+            if (anchor?.isVisible) {
+                treeViewState.setViewport({
+                    x: -(anchor.position.x + anchor.width / 2) * viewport.zoom,
+                    y: -(anchor.position.y + anchor.height / 2) * viewport.zoom
+                });
+            }
             renderer.setLOD(currentLOD);
-            renderer.render(layout);
+            renderer.render(layout, treeViewState.viewport);
         }
 
         renderer.updateViewport(treeViewState.viewport);
@@ -102,6 +159,7 @@
         const height = containerElement.clientHeight;
 
         treeViewState.setViewport({ width, height });
+        graphIndex = createTreeGraphIndex(tree);
 
         // Only set focus if explicitly provided via URL parameter
         if (initialFocusPersonId) {
@@ -111,16 +169,25 @@
 
         // Calculate initial layout (focusId may be null to show all persons)
         const focusLineageIds = initialFocusPersonId
-            ? getFocusLineageIds(tree, initialFocusPersonId)
+            ? getFocusLineageIds(tree, initialFocusPersonId, graphIndex)
             : [];
         const initialExpandedSet = new Set(focusLineageIds);
         treeViewState.resetFoldState(focusLineageIds);
-        currentLOD = getLODLevel(treeViewState.viewport.zoom);
+        currentLOD = !initialFocusPersonId && tree.persons.length > COARSE_FULL_TREE_LIMIT
+            ? 1
+            : getLODLevel(treeViewState.viewport.zoom);
 
+        const useCompactOverview = !initialFocusPersonId
+            && tree.persons.length > COARSE_FULL_TREE_LIMIT
+            && currentLOD === 1;
         let layout = calculateLayout(tree, initialFocusPersonId ?? null, {
             expandedNodeIds: initialExpandedSet,
-            lod: currentLOD
+            lod: currentLOD,
+            graphIndex
         });
+        if (useCompactOverview) {
+            layout = createTreeOverviewLayout(layout);
+        }
         treeViewState.setLayout(layout);
         treeViewState.fitToScreen();
 
@@ -129,7 +196,8 @@
             currentLOD = fittedLOD;
             layout = calculateLayout(tree, initialFocusPersonId ?? null, {
                 expandedNodeIds: initialExpandedSet,
-                lod: currentLOD
+                lod: currentLOD,
+                graphIndex
             });
             treeViewState.setLayout(layout);
         }
@@ -146,8 +214,7 @@
 
         await renderer.initialize(canvasElement, width, height);
 
-        renderer.render(layout);
-        renderer.updateViewport(treeViewState.viewport);
+        renderer.render(layout, treeViewState.viewport);
 
         resizeObserver = new ResizeObserver((entries) => {
             const entry = entries[0];

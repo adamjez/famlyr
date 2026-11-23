@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { calculateLayout, getFocusLineageIds, _testInternals } from '../layoutEngine';
+import {
+    calculateLayout,
+    createTreeGraphIndex,
+    createTreeOverviewLayout,
+    getFocusLineageIds,
+    _testInternals
+} from '../layoutEngine';
 import type { TreeLayout, TreeNode, LayoutConfig } from '$lib/types/tree';
 import { DEFAULT_LAYOUT_CONFIG } from '$lib/types/tree';
 import type { FamilyTreeModel, PersonModel } from '$lib/types/api';
@@ -139,6 +145,36 @@ describe('layoutEngine', () => {
                 const solo = nodeById(layout, 'solo');
                 expect(solo.layer).toBe(0);
             });
+        });
+
+        describe('TreeGraphIndex', () => {
+            it('reuses relationship and descendant indexes without changing layout results', () => {
+                const family = threeGenerations();
+                const familyTree = tree(family.allPersons, family.relationships);
+                const focusId = family.children[0].id;
+                const graphIndex = createTreeGraphIndex(familyTree);
+                const expandedNodeIds = new Set(getFocusLineageIds(familyTree, focusId, graphIndex));
+
+                const expected = calculateLayout(familyTree, focusId, { expandedNodeIds });
+                const actual = calculateLayout(familyTree, focusId, { expandedNodeIds, graphIndex });
+
+                expect(actual).toEqual(expected);
+            });
+        });
+
+        it('creates a compact generation overview for large trees', () => {
+            const family = threeGenerations();
+            const layout = calculateLayout(tree(family.allPersons, family.relationships), null);
+            const overview = createTreeOverviewLayout(layout);
+            const overviewLayers = [...overview.layers.values()];
+
+            expect(overview.nodes.size).toBe(layout.nodes.size);
+            expect(overview.connections).toHaveLength(0);
+            expect(overview.familyNodes.size).toBe(0);
+            expect(overview.bounds.width).toBe(12_000);
+            expect(overview.bounds.height).toBe(6_000);
+            expect(new Set(overviewLayers.map(layer => layer[0].position.y)).size).toBe(overview.layers.size);
+            expect([...overview.nodes.values()].every(node => node.width === 20 && node.height === 20)).toBe(true);
         });
 
         it('positions a focused lone person', () => {

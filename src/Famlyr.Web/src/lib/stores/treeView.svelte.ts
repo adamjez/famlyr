@@ -156,7 +156,7 @@ function createTreeViewState() {
         animationFrameId = requestAnimationFrame(animate);
     }
 
-    function zoomToGroup(nodeIds: string[], animated: boolean = true) {
+    function zoomToGroup(nodeIds: string[], animated: boolean = true, centerPersonId?: string) {
         if (viewport.width === 0 || viewport.height === 0) return;
 
         const bounds = calculateGroupBounds(nodeIds);
@@ -171,8 +171,13 @@ function createTreeViewState() {
 
         const clampedZoom = Math.max(Math.min(fitZoom, ZOOM_MIN), Math.min(ZOOM_MAX, targetZoom));
 
-        const centerX = (bounds.minX + bounds.maxX) / 2;
-        const centerY = (bounds.minY + bounds.maxY) / 2;
+        const centerNode = centerPersonId ? layout?.nodes.get(centerPersonId) : undefined;
+        const centerX = centerNode
+            ? centerNode.position.x + centerNode.width / 2
+            : (bounds.minX + bounds.maxX) / 2;
+        const centerY = centerNode
+            ? centerNode.position.y + centerNode.height / 2
+            : (bounds.minY + bounds.maxY) / 2;
 
         const targetX = -centerX * clampedZoom;
         const targetY = -centerY * clampedZoom;
@@ -257,7 +262,7 @@ function createTreeViewState() {
         zoomToFocusedPerson() {
             if (!focusedPersonId) return;
             const relatedIds = getRelatedNodeIds(focusedPersonId);
-            zoomToGroup(relatedIds, true);
+            zoomToGroup(relatedIds, true, focusedPersonId);
         },
 
         fitToScreen() {

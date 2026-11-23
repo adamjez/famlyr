@@ -24,7 +24,7 @@
         miniMapVisibilityOverride ?? tree.persons.length <= MINI_MAP_DEFAULT_VISIBILITY_LIMIT
     );
     let showMobileMiniMap = $state(false);
-    let showMobileBranches = $state(false);
+    let showBranches = $state(false);
     let activeTreeId: string | null = null;
 
     $effect(() => {
@@ -33,11 +33,33 @@
         activeTreeId = tree.id;
         miniMapVisibilityOverride = null;
         showMobileMiniMap = false;
-        showMobileBranches = false;
+        showBranches = false;
+    });
+
+    $effect(() => {
+        if (treeViewState.selectedPersonId) {
+            showBranches = false;
+        }
     });
 
     function handleFocus(personId: string) {
         canvasRef?.setFocusPerson(personId);
+    }
+
+    function handleBranchSelect(personId: string) {
+        canvasRef?.setFocusPerson(personId);
+        treeViewState.selectPerson(personId);
+    }
+
+    function handleToggleBranches() {
+        if (showBranches) {
+            showBranches = false;
+            return;
+        }
+
+        treeViewState.selectPerson(null);
+        showMobileMiniMap = false;
+        showBranches = true;
     }
 
     function handleToggleFold(personId: string) {
@@ -81,12 +103,13 @@
         onSelect={handleSearchSelect}
     />
 
-    <TreeBranchNavigator
-        {tree}
-        mobileOpen={showMobileBranches}
-        onClose={() => (showMobileBranches = false)}
-        onSelect={handleFocus}
-    />
+    {#if showBranches}
+        <TreeBranchNavigator
+            {tree}
+            onClose={() => (showBranches = false)}
+            onSelect={handleBranchSelect}
+        />
+    {/if}
 
     <TreeControls onShowWholeTree={handleShowWholeTree} />
 
@@ -111,7 +134,7 @@
         </button>
     {/if}
 
-    {#if !showMobileMiniMap && !showMobileBranches}
+    {#if !showBranches && !showMobileMiniMap}
         <div class="mobile-navigation-buttons">
             <button
                 class="mobile-mini-map-toggle"
@@ -119,7 +142,7 @@
                 aria-label="Show mini-map"
                 aria-expanded={showMobileMiniMap}
                 onclick={() => {
-                    showMobileBranches = false;
+                    showBranches = false;
                     showMobileMiniMap = true;
                 }}
             >
@@ -129,15 +152,24 @@
                 class="mobile-branches-toggle"
                 type="button"
                 aria-label="Show family branches"
-                aria-expanded={showMobileBranches}
-                onclick={() => {
-                    showMobileMiniMap = false;
-                    showMobileBranches = true;
-                }}
+                aria-expanded={showBranches}
+                onclick={handleToggleBranches}
             >
                 Branches
             </button>
         </div>
+    {/if}
+
+    {#if !showBranches}
+        <button
+            class="branches-toggle"
+            type="button"
+            aria-label="Show family branches"
+            aria-expanded={showBranches}
+            onclick={handleToggleBranches}
+        >
+            Branches
+        </button>
     {/if}
 
     {#if treeViewState.selectedPerson && treeViewState.selectedNode}
@@ -190,7 +222,27 @@
         cursor: pointer;
     }
 
+    .branches-toggle {
+        position: absolute;
+        left: 16px;
+        bottom: 16px;
+        z-index: 11;
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid var(--color-neutral-300);
+        border-radius: 8px;
+        background: white;
+        color: var(--color-neutral-700);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+        cursor: pointer;
+    }
+
     .mini-map-toggle:focus-visible {
+        outline: 2px solid var(--color-primary-500);
+        outline-offset: 2px;
+    }
+
+    .branches-toggle:focus-visible {
         outline: 2px solid var(--color-primary-500);
         outline-offset: 2px;
     }
@@ -209,6 +261,10 @@
 
     @media (max-width: 639px) {
         .mini-map-toggle {
+            display: none;
+        }
+
+        .branches-toggle {
             display: none;
         }
 

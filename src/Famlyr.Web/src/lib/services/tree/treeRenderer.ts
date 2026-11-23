@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent, Sprite, Texture, Assets } from 'pixi.js';
+import { Application, Container, Graphics, Rectangle, Text, TextStyle, FederatedPointerEvent, Sprite, Texture, Assets } from 'pixi.js';
 import type { TreeLayout, TreeNode, TreeConnection, Viewport, LODLevel, FamilyNode } from '$lib/types/tree';
 import { LOD_CONFIGS } from '$lib/types/tree';
 import type { Gender, PersonModel } from '$lib/types/api';
@@ -18,6 +18,15 @@ const COLORS = {
     textSecondary: 0xf1f3f5,
     background: 0xf8f9fa
 };
+
+interface WorldBounds {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+}
+
+const SPATIAL_CELL_SIZE = 512;
 
 function getNodeColor(gender: Gender): number {
     switch (gender) {
@@ -45,6 +54,10 @@ export class TreeRenderer {
     private photoTextures: Map<string, Texture> = new Map();
     private photoContainers: Map<string, Container> = new Map();
     private currentLOD: LODLevel = 3;
+    private viewport: Viewport = { x: 0, y: 0, zoom: 1, width: 0, height: 0 };
+    private spatialCells = new Map<string, TreeNode[]>();
+    private spatialNodes: TreeNode[] = [];
+    private renderCoverage: WorldBounds | null = null;
 
     constructor(options: TreeRendererOptions = {}) {
         this.options = options;
@@ -71,34 +84,177 @@ export class TreeRenderer {
         this.app.stage.addChild(this.treeContainer);
     }
 
-    render(layout: TreeLayout): void {
+    render(layout: TreeLayout, viewport: Viewport = this.viewport): void {
         if (!this.app || !this.treeContainer) return;
 
+        this.viewport = viewport;
+        this.applyViewport(viewport);
         this.layout = layout;
-        this.treeContainer.removeChildren();
-        this.nodeSprites.clear();
-        this.photoContainers.clear();
+        this.buildSpatialIndex(layout);
+        this.renderVisibleContent();
+    }
 
-        this.renderConnections(layout);
+    private buildSpatialIndex(layout: TreeLayout): void {
+        this.spatialCells.clear();
+        this.spatialNodes = [];
 
         for (const node of layout.nodes.values()) {
-            if (node.isVisible) {
-                this.renderNode(node);
+            if (!node.isVisible) continue;
+
+            this.spatialNodes.push(node);
+            const minCellX = Math.floor(node.position.x / SPATIAL_CELL_SIZE);
+            const maxCellX = Math.floor((node.position.x + node.width) / SPATIAL_CELL_SIZE);
+            const minCellY = Math.floor(node.position.y / SPATIAL_CELL_SIZE);
+            const maxCellY = Math.floor((node.position.y + node.height) / SPATIAL_CELL_SIZE);
+
+            for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+                for (let cellY = minCellY; cellY <= maxCellY; cellY++) {
+                    const key = `${cellX}:${cellY}`;
+                    const cell = this.spatialCells.get(key) ?? [];
+                    cell.push(node);
+                    this.spatialCells.set(key, cell);
+                }
             }
         }
     }
 
-    private renderConnections(layout: TreeLayout): void {
+    private viewportBounds(viewport: Viewport, overscan: number): WorldBounds {
+        const zoom = Math.max(viewport.zoom, 0.001);
+        const width = viewport.width / zoom;
+        const height = viewport.height / zoom;
+        const left = -(viewport.width / 2 + viewport.x) / zoom;
+        const top = -(viewport.height / 2 + viewport.y) / zoom;
+        const paddingX = width * overscan;
+        const paddingY = height * overscan;
+
+        return {
+            left: left - paddingX,
+            top: top - paddingY,
+            right: left + width + paddingX,
+            bottom: top + height + paddingY
+        };
+    }
+
+    private queryNodes(bounds: WorldBounds): TreeNode[] {
+        const layoutBounds = this.layout?.bounds;
+        if (
+            layoutBounds &&
+            bounds.left <= layoutBounds.minX &&
+            bounds.top <= layoutBounds.minY &&
+            bounds.right >= layoutBounds.maxX &&
+            bounds.bottom >= layoutBounds.maxY
+        ) {
+            return this.spatialNodes;
+        }
+
+        const minCellX = Math.floor(bounds.left / SPATIAL_CELL_SIZE);
+        const maxCellX = Math.floor(bounds.right / SPATIAL_CELL_SIZE);
+        const minCellY = Math.floor(bounds.top / SPATIAL_CELL_SIZE);
+        const maxCellY = Math.floor(bounds.bottom / SPATIAL_CELL_SIZE);
+        const cellCount = (maxCellX - minCellX + 1) * (maxCellY - minCellY + 1);
+        const candidates = new Map<string, TreeNode>();
+
+        if (cellCount > this.spatialCells.size * 2) {
+            for (const node of this.spatialNodes) candidates.set(node.id, node);
+        } else {
+            for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+                for (let cellY = minCellY; cellY <= maxCellY; cellY++) {
+                    for (const node of this.spatialCells.get(`${cellX}:${cellY}`) ?? []) {
+                        candidates.set(node.id, node);
+                    }
+                }
+            }
+        }
+
+        return [...candidates.values()].filter(node =>
+            node.position.x <= bounds.right &&
+            node.position.x + node.width >= bounds.left &&
+            node.position.y <= bounds.bottom &&
+            node.position.y + node.height >= bounds.top
+        );
+    }
+
+    private findNodeAt(x: number, y: number): TreeNode | null {
+        const cell = this.spatialCells.get(
+            `${Math.floor(x / SPATIAL_CELL_SIZE)}:${Math.floor(y / SPATIAL_CELL_SIZE)}`
+        );
+        if (!cell) return null;
+
+        for (let i = cell.length - 1; i >= 0; i--) {
+            const node = cell[i];
+            if (
+                x >= node.position.x &&
+                x <= node.position.x + node.width &&
+                y >= node.position.y &&
+                y <= node.position.y + node.height
+            ) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private clearRenderedContent(): void {
+        if (!this.treeContainer) return;
+
+        for (const child of this.treeContainer.removeChildren()) {
+            child.destroy({ children: true });
+        }
+        this.nodeSprites.clear();
+        this.photoContainers.clear();
+    }
+
+    private renderVisibleContent(): void {
+        if (!this.treeContainer || !this.layout) return;
+
+        this.clearRenderedContent();
+        const coverage = this.viewportBounds(this.viewport, 1);
+        this.renderCoverage = coverage;
+        const nodes = this.queryNodes(coverage);
+        const connectionNodeIds = new Set<string>();
+
+        for (const node of nodes) {
+            connectionNodeIds.add(node.id);
+            for (const id of node.parentIds) connectionNodeIds.add(id);
+            for (const id of node.childIds) connectionNodeIds.add(id);
+            for (const id of node.spouseIds) connectionNodeIds.add(id);
+        }
+
+        this.renderConnections(this.layout, connectionNodeIds);
+        if (this.currentLOD === 1) {
+            this.renderBatchedLOD1Nodes(nodes);
+        } else {
+            for (const node of nodes) this.renderNode(node);
+        }
+    }
+
+    private isViewportCovered(viewport: Viewport): boolean {
+        if (!this.renderCoverage) return false;
+        const bounds = this.viewportBounds(viewport, 0.25);
+        return bounds.left >= this.renderCoverage.left
+            && bounds.top >= this.renderCoverage.top
+            && bounds.right <= this.renderCoverage.right
+            && bounds.bottom <= this.renderCoverage.bottom;
+    }
+
+    private renderConnections(layout: TreeLayout, relevantNodeIds: Set<string>): void {
         if (!this.treeContainer) return;
 
         const graphics = new Graphics();
         this.treeContainer.addChild(graphics);
 
         if (layout.familyNodes.size > 0) {
-            this.drawFamilyNodeConnections(graphics, layout);
+            this.drawFamilyNodeConnections(graphics, layout, relevantNodeIds);
         }
 
         for (const connection of layout.connections) {
+            if (
+                !connection.fromIds.some(id => relevantNodeIds.has(id)) &&
+                !connection.toIds.some(id => relevantNodeIds.has(id))
+            ) {
+                continue;
+            }
+
             if (connection.type === 'spouse') {
                 this.drawSpouseConnection(graphics, connection, layout);
             } else if (connection.type === 'coparent') {
@@ -123,12 +279,23 @@ export class TreeRenderer {
         g.stroke({ width: hl ? 3 : 2, color: hl ? COLORS.connectionHighlight : COLORS.connectionLine });
     }
 
-    private drawFamilyNodeConnections(graphics: Graphics, layout: TreeLayout): void {
+    private drawFamilyNodeConnections(
+        graphics: Graphics,
+        layout: TreeLayout,
+        relevantNodeIds: Set<string>
+    ): void {
         // Draw all base connectors first, then overlay highlighted lineage segments
         // on top so the highlight is never hidden behind a later base stroke.
         const highlightPass: Array<() => void> = [];
 
         for (const familyNode of layout.familyNodes.values()) {
+            if (
+                !familyNode.parentIds.some(id => relevantNodeIds.has(id)) &&
+                !familyNode.childIds.some(id => relevantNodeIds.has(id))
+            ) {
+                continue;
+            }
+
             const parents = familyNode.parentIds
                 .map(id => {
                     const node = layout.nodes.get(id);
@@ -320,6 +487,45 @@ export class TreeRenderer {
 
         this.treeContainer.addChild(container);
         this.nodeSprites.set(node.id, container);
+    }
+
+    private renderBatchedLOD1Nodes(nodes: TreeNode[]): void {
+        if (!this.treeContainer || !this.layout) return;
+
+        const graphics = new Graphics();
+        for (const node of nodes) {
+            graphics.roundRect(node.position.x, node.position.y, node.width, node.height, 2);
+            graphics.fill(getNodeColor(node.person.gender));
+
+            if (node.id === this.selectedNodeId) {
+                graphics.roundRect(node.position.x, node.position.y, node.width, node.height, 2);
+                graphics.stroke({ width: 2, color: COLORS.nodeSelected });
+            } else if (this.highlightedParentIds.has(node.id)) {
+                graphics.roundRect(node.position.x, node.position.y, node.width, node.height, 2);
+                graphics.stroke({ width: 2, color: COLORS.nodeParent });
+            } else if (this.highlightedChildIds.has(node.id)) {
+                graphics.roundRect(node.position.x, node.position.y, node.width, node.height, 2);
+                graphics.stroke({ width: 2, color: COLORS.nodeChild });
+            }
+        }
+
+        graphics.eventMode = 'static';
+        graphics.cursor = 'pointer';
+        graphics.hitArea = new Rectangle(
+            this.layout.bounds.minX,
+            this.layout.bounds.minY,
+            this.layout.bounds.width,
+            this.layout.bounds.height
+        );
+        graphics.on('pointerdown', (event: FederatedPointerEvent) => {
+            const point = this.treeContainer?.toLocal(event.global);
+            if (!point) return;
+
+            const node = this.findNodeAt(point.x, point.y);
+            if (node) this.options.onNodeClick?.(node.id);
+        });
+
+        this.treeContainer.addChild(graphics);
     }
 
     private renderNodeLOD1(container: Container, node: TreeNode): void {
@@ -657,7 +863,7 @@ export class TreeRenderer {
         }
 
         if (this.layout) {
-            this.render(this.layout);
+            this.renderVisibleContent();
         }
     }
 
@@ -669,6 +875,17 @@ export class TreeRenderer {
     }
 
     updateViewport(viewport: Viewport): void {
+        if (!this.treeContainer) return;
+
+        this.viewport = viewport;
+        this.applyViewport(viewport);
+
+        if (this.layout && !this.isViewportCovered(viewport)) {
+            this.renderVisibleContent();
+        }
+    }
+
+    private applyViewport(viewport: Viewport): void {
         if (!this.treeContainer) return;
 
         this.treeContainer.position.set(
@@ -694,5 +911,8 @@ export class TreeRenderer {
         this.app = null;
         this.treeContainer = null;
         this.nodeSprites.clear();
+        this.spatialCells.clear();
+        this.spatialNodes = [];
+        this.renderCoverage = null;
     }
 }

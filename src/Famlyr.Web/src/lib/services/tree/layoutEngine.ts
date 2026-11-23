@@ -8,6 +8,11 @@ interface RelationshipMaps {
     spouseOf: Map<string, string[]>;
 }
 
+export interface TreeGraphIndex {
+    relationshipMaps: RelationshipMaps;
+    descendantCounts: Map<string, number>;
+}
+
 interface FamilyCluster {
     id: string;
     parentIds: string[];
@@ -1092,6 +1097,14 @@ function calculateDescendantCounts(
     return counts;
 }
 
+export function createTreeGraphIndex(tree: FamilyTreeModel): TreeGraphIndex {
+    const relationshipMaps = buildRelationshipMaps(tree.relationships);
+    return {
+        relationshipMaps,
+        descendantCounts: calculateDescendantCounts(tree.persons, relationshipMaps)
+    };
+}
+
 function markFocusLineage(
     focusPersonId: string | null,
     maps: RelationshipMaps
@@ -1207,6 +1220,7 @@ export interface LayoutOptions {
     config?: LayoutConfig;
     expandedNodeIds?: Set<string>;
     lod?: LODLevel;
+    graphIndex?: TreeGraphIndex;
 }
 
 export function calculateLayout(
@@ -1228,8 +1242,8 @@ export function calculateLayout(
     };
     const expandedNodeIds = options.expandedNodeIds ?? new Set<string>();
 
-    const maps = buildRelationshipMaps(tree.relationships);
-    const descendantCounts = calculateDescendantCounts(tree.persons, maps);
+    const graphIndex = options.graphIndex ?? createTreeGraphIndex(tree);
+    const { relationshipMaps: maps, descendantCounts } = graphIndex;
     const focusLineage = markFocusLineage(focusPersonId, maps);
     const visibleNodeIds = determineVisibleNodes(tree.persons, focusPersonId, expandedNodeIds, maps);
 
@@ -1302,12 +1316,62 @@ export function calculateLayout(
     return { nodes, bounds, layers, connections, familyNodes };
 }
 
+export function createTreeOverviewLayout(layout: TreeLayout): TreeLayout {
+    const overviewWidth = 12_000;
+    const overviewHeight = 6_000;
+    const padding = 200;
+    const markerSize = 20;
+    const layerEntries = Array.from(layout.layers.entries())
+        .sort(([a], [b]) => a - b);
+    const nodes = new Map(layout.nodes);
+    const layers = new Map<number, TreeNode[]>();
+    const availableWidth = overviewWidth - padding * 2;
+    const availableHeight = overviewHeight - padding * 2;
+
+    layerEntries.forEach(([layer, layerNodes], layerIndex) => {
+        const sortedNodes = [...layerNodes].sort(
+            (a, b) => a.position.x - b.position.x || a.id.localeCompare(b.id)
+        );
+        const row = sortedNodes.map((node, nodeIndex) => {
+            const overviewNode: TreeNode = {
+                ...node,
+                position: {
+                    x: padding + (nodeIndex + 0.5) * availableWidth / sortedNodes.length - markerSize / 2,
+                    y: padding + (layerIndex + 0.5) * availableHeight / layerEntries.length - markerSize / 2
+                },
+                width: markerSize,
+                height: markerSize
+            };
+            nodes.set(node.id, overviewNode);
+            return overviewNode;
+        });
+        layers.set(layer, row);
+    });
+
+    const bounds: TreeBounds = {
+        minX: 0,
+        maxX: overviewWidth,
+        minY: 0,
+        maxY: overviewHeight,
+        width: overviewWidth,
+        height: overviewHeight
+    };
+
+    return {
+        nodes,
+        bounds,
+        layers,
+        connections: [],
+        familyNodes: new Map()
+    };
+}
+
 export function getFocusLineageIds(
     tree: FamilyTreeModel,
-    focusPersonId: string
+    focusPersonId: string,
+    graphIndex: TreeGraphIndex = createTreeGraphIndex(tree)
 ): string[] {
-    const maps = buildRelationshipMaps(tree.relationships);
-    const lineage = markFocusLineage(focusPersonId, maps);
+    const lineage = markFocusLineage(focusPersonId, graphIndex.relationshipMaps);
     return Array.from(lineage);
 }
 
