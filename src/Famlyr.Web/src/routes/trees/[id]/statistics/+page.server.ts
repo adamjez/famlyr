@@ -5,7 +5,7 @@ import { error } from "@sveltejs/kit";
 export const load: PageServerLoad = async ({ params }) => {
     try {
         const [tree, statistics] = await Promise.all([
-            getTreeDetails(params.id),
+            getTreeDetails(params.id, 0, 1),
             getTreeStatistics(params.id)
         ]);
         return { tree, statistics };

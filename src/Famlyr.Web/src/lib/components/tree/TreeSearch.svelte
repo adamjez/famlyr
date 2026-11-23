@@ -1,10 +1,13 @@
 <script lang="ts">
 	import type { PersonModel } from '$lib/types/api';
+	import { searchPersons as searchPersonsApi } from '$lib/api/persons';
+	import { t } from '$lib/i18n.svelte';
 	import { searchPersons, type SearchResult } from '$lib/services/tree/treeSearch';
 
 	interface Props {
 		persons: PersonModel[];
 		onSelect: (person: PersonModel) => void;
+		treeId?: string;
 		placeholder?: string;
 		inline?: boolean;
 	}
@@ -12,6 +15,7 @@
 	let {
 		persons,
 		onSelect,
+		treeId,
 		placeholder = 'Search persons... (/)',
 		inline = false
 	}: Props = $props();
@@ -20,24 +24,62 @@
 	let results = $state<SearchResult[]>([]);
 	let showDropdown = $state(false);
 	let highlightedIndex = $state(-1);
+	let isSearching = $state(false);
+	let searchError = $state(false);
 	let inputElement: HTMLInputElement;
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let searchRequestId = 0;
+	const minSearchLength = $derived(treeId ? 2 : 1);
 
 	function handleInput() {
 		showDropdown = true;
 		highlightedIndex = -1;
+		searchError = false;
+		const requestId = ++searchRequestId;
+		const searchQuery = query.trim();
 
 		if (debounceTimer) clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			if (query.trim().length >= 1) {
-				results = searchPersons(persons, query, 10);
-			} else {
-				results = [];
+
+		if (searchQuery.length < minSearchLength) {
+			results = [];
+			isSearching = false;
+			return;
+		}
+
+		isSearching = true;
+		debounceTimer = setTimeout(() => void performSearch(searchQuery, requestId), 100);
+	}
+
+	async function performSearch(searchQuery: string, requestId: number) {
+		if (!treeId) {
+			results = searchPersons(persons, searchQuery, 10);
+			isSearching = false;
+			return;
+		}
+
+		try {
+			const response = await searchPersonsApi(treeId, searchQuery, { limit: 10 });
+			if (requestId === searchRequestId) {
+				results = response.persons.map((person) => ({
+					person: { ...person, primaryPhotoUrl: null },
+					score: 1
+				}));
 			}
-		}, 50);
+		} catch {
+			if (requestId === searchRequestId) {
+				results = [];
+				searchError = true;
+			}
+		} finally {
+			if (requestId === searchRequestId) {
+				isSearching = false;
+			}
+		}
 	}
 
 	function handleSelect(result: SearchResult) {
+		searchRequestId++;
+		isSearching = false;
 		query = '';
 		results = [];
 		showDropdown = false;
@@ -145,7 +187,13 @@
 
 	{#if showDropdown && (results.length > 0 || query.trim().length >= 1)}
 		<ul id="search-results" class="search-dropdown" role="listbox">
-			{#if results.length === 0 && query.trim().length >= 1}
+			{#if searchError}
+				<li class="search-status">{t('searchFailed')}</li>
+			{:else if query.trim().length < minSearchLength}
+				<li class="search-status">{t('searchMinLength')}</li>
+			{:else if isSearching}
+				<li class="search-status">{t('searching')}</li>
+			{:else if results.length === 0 && query.trim().length >= minSearchLength}
 				<li class="search-status">No persons found</li>
 			{:else}
 				{#each results as result, index}

@@ -35,7 +35,7 @@ export interface PersonSearchResultModel {
     id: string;
     firstName: string | null;
     lastName: string | null;
-    gender: string;
+    gender: Gender;
     birthDate: string | null;
     deathDate: string | null;
 }
@@ -105,6 +105,7 @@ export interface FamilyTreeSummaryModel {
 
 export interface FamilyTreeListResponse {
     trees: FamilyTreeSummaryModel[];
+    hasMore: boolean;
 }
 
 export interface YearRangeModel {
@@ -122,6 +123,7 @@ export interface FamilyTreeDetailModel {
     yearRange: YearRangeModel | null;
     persons: PersonModel[];
     relationships: RelationshipModel[];
+    hasMore: boolean;
 }
 
 export interface CreateFamilyTreeRequest {

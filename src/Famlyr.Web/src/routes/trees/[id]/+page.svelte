@@ -11,16 +11,70 @@
     import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
     import TreeSearch from "$lib/components/tree/TreeSearch.svelte";
     import { t } from "$lib/i18n.svelte";
+    import { getTreeDetails, PERSON_PAGE_SIZE } from "$lib/api/familyTree";
+    import { untrack } from "svelte";
 
     let { data }: { data: PageData } = $props();
 
     let selectedPerson: PersonModel | null = $state(null);
+    let persons = $state(untrack(() => data.tree.persons));
+    let hasMorePersons = $state(untrack(() => data.tree.hasMore));
+    let nextPersonSkip = $state(untrack(() => data.tree.persons.length));
+    let loadingMorePersons = $state(false);
+    let personLoadError = $state(false);
+    let personListSentinel = $state<HTMLDivElement | undefined>(undefined);
     let editingPerson: PersonDetailModel | null = $state(null);
     let showAddPerson = $state(false);
     let showEditTree = $state(false);
     let showDeleteConfirm = $state(false);
     let isDeleting = $state(false);
     let searchRef: TreeSearch | null = $state(null);
+
+    $effect(() => {
+        if (!hasMorePersons || loadingMorePersons || personLoadError || !personListSentinel) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    void loadMorePersons();
+                }
+            },
+            { rootMargin: "300px" }
+        );
+
+        observer.observe(personListSentinel);
+        return () => observer.disconnect();
+    });
+
+    async function loadMorePersons() {
+        if (loadingMorePersons || !hasMorePersons) {
+            return;
+        }
+
+        loadingMorePersons = true;
+        personLoadError = false;
+        try {
+            const response = await getTreeDetails(data.tree.id, nextPersonSkip, PERSON_PAGE_SIZE);
+            const existingIds = new Set(persons.map((person) => person.id));
+            persons = [...persons, ...response.persons.filter((person) => !existingIds.has(person.id))];
+            nextPersonSkip += response.persons.length;
+            hasMorePersons = response.hasMore;
+        } catch {
+            personLoadError = true;
+        } finally {
+            loadingMorePersons = false;
+        }
+    }
+
+    async function refreshPersons() {
+        await invalidateAll();
+        persons = data.tree.persons;
+        nextPersonSkip = persons.length;
+        hasMorePersons = data.tree.hasMore;
+        personLoadError = false;
+    }
 
     function formatDate(dateString: string): string {
         return new Date(dateString).toLocaleDateString(undefined, {
@@ -91,7 +145,7 @@
     async function handlePersonSaved() {
         const isEdit = !!editingPerson;
         closeFormPanel();
-        await invalidateAll();
+        await refreshPersons();
         showToast(isEdit ? t('personUpdated') : t('personAdded'));
     }
 
@@ -107,7 +161,7 @@
 
     async function handlePersonDeleted() {
         selectedPerson = null;
-        await invalidateAll();
+        await refreshPersons();
     }
 
     async function handleDeleteTree() {
@@ -218,11 +272,12 @@
     <div>
         <div class="flex items-center justify-between gap-4">
             <h2 class="text-xl font-semibold">{t('persons')}</h2>
-            {#if data.tree.persons.length > 0}
+            {#if data.tree.personCount > 0}
                 <div class="w-72">
                     <TreeSearch
                         bind:this={searchRef}
-                        persons={data.tree.persons}
+                        persons={persons}
+                        treeId={data.tree.id}
                         onSelect={handleSearchSelect}
                         inline={true}
                     />
@@ -230,13 +285,13 @@
             {/if}
         </div>
 
-        {#if data.tree.persons.length === 0}
+        {#if data.tree.personCount === 0}
             <div class="card mt-4 text-center py-8">
                 <p class="text-neutral-500">{t('noPersons')}</p>
             </div>
         {:else}
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {#each data.tree.persons as person}
+                {#each persons as person (person.id)}
                     <button
                         class="card-interactive text-left"
                         onclick={() => selectPerson(person)}
@@ -264,6 +319,19 @@
                     </button>
                 {/each}
             </div>
+            {#if hasMorePersons}
+                <div class="py-4 text-center">
+                    {#if personLoadError}
+                        <p class="mb-3 text-sm text-red-600" role="alert">{t('failedToLoadPersons')}</p>
+                        <button class="btn btn-secondary" onclick={loadMorePersons}>{t('retry')}</button>
+                    {:else if loadingMorePersons}
+                        <p class="text-sm text-neutral-500" role="status">{t('loadingMorePersons')}</p>
+                    {:else}
+                        <button class="btn btn-secondary" onclick={loadMorePersons}>{t('loadMorePersons')}</button>
+                    {/if}
+                    <div bind:this={personListSentinel} aria-hidden="true" class="h-px"></div>
+                </div>
+            {/if}
         {/if}
     </div>
 </div>

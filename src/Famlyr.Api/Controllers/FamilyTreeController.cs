@@ -14,19 +14,49 @@ namespace Famlyr.Api.Controllers;
 public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<FamilyTreeListResponse>> GetFamilyTrees()
+    public async Task<ActionResult<FamilyTreeListResponse>> GetFamilyTrees(
+        [FromQuery] int skip = 0,
+        [FromQuery] int? take = null)
     {
-        var trees = await context.FamilyTrees
+        if (skip < 0 || take is < 1 or > 100)
+        {
+            return BadRequest(new ErrorResponse { Code = "INVALID_PAGINATION", Message = "Skip must be non-negative and take must be between 1 and 100" });
+        }
+
+        var query = context.FamilyTrees
+            .OrderBy(ft => ft.Name)
+            .ThenBy(ft => ft.Id)
             .Select(ft => new FamilyTreeSummaryModel
             {
                 Id = ft.Id,
                 Name = ft.Name,
                 Description = ft.Description,
                 PersonCount = ft.Persons.Count
-            })
-            .ToListAsync();
+            });
 
-        return Ok(new FamilyTreeListResponse { Trees = trees });
+        if (take.HasValue)
+        {
+            var trees = await query
+                .Skip(skip)
+                .Take(take.Value + 1)
+                .ToListAsync();
+
+            var hasMore = trees.Count > take.Value;
+            if (hasMore)
+            {
+                trees.RemoveAt(take.Value);
+            }
+
+            return Ok(new FamilyTreeListResponse { Trees = trees, HasMore = hasMore });
+        }
+
+        if (skip != 0)
+        {
+            return BadRequest(new ErrorResponse { Code = "INVALID_PAGINATION", Message = "Take is required when skip is specified" });
+        }
+
+        var allTrees = await query.ToListAsync();
+        return Ok(new FamilyTreeListResponse { Trees = allTrees, HasMore = false });
     }
 
     [HttpGet("{id:guid}")]
@@ -98,8 +128,26 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
     }
 
     [HttpGet("{id:guid}/details")]
-    public async Task<ActionResult<FamilyTreeDetailModel>> GetFamilyTreeDetails(Guid id)
+    public async Task<ActionResult<FamilyTreeDetailModel>> GetFamilyTreeDetails(
+        Guid id,
+        [FromQuery] int skip = 0,
+        [FromQuery] int? take = null)
     {
+        if (skip < 0 || take is < 1 or > 100)
+        {
+            return BadRequest(new ErrorResponse { Code = "INVALID_PAGINATION", Message = "Skip must be non-negative and take must be between 1 and 100" });
+        }
+
+        if (take.HasValue)
+        {
+            return await GetFamilyTreeDetailsPage(id, skip, take.Value);
+        }
+
+        if (skip != 0)
+        {
+            return BadRequest(new ErrorResponse { Code = "INVALID_PAGINATION", Message = "Take is required when skip is specified" });
+        }
+
         var result = await context.FamilyTrees
             .Where(ft => ft.Id == id)
             .AsSplitQuery()
@@ -114,6 +162,7 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
                     .OrderByDescending(p => p.BirthYear)
                     .ThenByDescending(p => p.BirthMonth)
                     .ThenByDescending(p => p.BirthDay)
+                    .ThenBy(p => p.Id)
                     .Select(p => new
                     {
                         p.Id,
@@ -177,7 +226,96 @@ public class FamilyTreeController(FamlyrDbContext context) : ControllerBase
             PersonCount = persons.Count,
             YearRange = yearRange,
             Persons = persons,
-            Relationships = result.Relationships
+            Relationships = result.Relationships,
+            HasMore = false
+        });
+    }
+
+    private async Task<ActionResult<FamilyTreeDetailModel>> GetFamilyTreeDetailsPage(Guid id, int skip, int take)
+    {
+        var result = await context.FamilyTrees
+            .Where(ft => ft.Id == id)
+            .Select(ft => new
+            {
+                ft.Id,
+                ft.Name,
+                ft.Description,
+                ft.CreatedAt,
+                ft.UpdatedAt,
+                PersonCount = ft.Persons.Count,
+                Persons = ft.Persons
+                    .OrderByDescending(p => p.BirthYear)
+                    .ThenByDescending(p => p.BirthMonth)
+                    .ThenByDescending(p => p.BirthDay)
+                    .ThenBy(p => p.Id)
+                    .Skip(skip)
+                    .Take(take + 1)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.FirstName,
+                        p.LastName,
+                        p.Gender,
+                        p.BirthYear,
+                        p.BirthMonth,
+                        p.BirthDay,
+                        p.DeathYear,
+                        p.DeathMonth,
+                        p.DeathDay,
+                        PrimaryPhotoId = p.Photos.Where(ph => ph.IsPrimary).Select(ph => (Guid?)ph.Id).FirstOrDefault()
+                    }).ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (result is null)
+        {
+            return NotFound();
+        }
+
+        var hasMore = result.Persons.Count > take;
+        var page = result.Persons.Take(take).ToList();
+        var allYears = context.Persons
+            .Where(p => p.FamilyTreeId == id)
+            .Select(p => p.BirthYear)
+            .Concat(context.Persons
+                .Where(p => p.FamilyTreeId == id)
+                .Select(p => p.DeathYear))
+            .Where(year => year.HasValue)
+            .Select(year => year!.Value);
+
+        var yearRange = await allYears
+            .GroupBy(_ => 1)
+            .Select(years => new YearRangeModel
+            {
+                Start = years.Min(),
+                End = years.Max()
+            })
+            .FirstOrDefaultAsync();
+
+        var baseUrl = Request.GetBaseUrl();
+        var persons = page.Select(p => new PersonModel
+        {
+            Id = p.Id,
+            FirstName = p.FirstName,
+            LastName = p.LastName,
+            Gender = p.Gender,
+            BirthDate = DateHelper.FormatDate(p.BirthYear, p.BirthMonth, p.BirthDay),
+            DeathDate = DateHelper.FormatDate(p.DeathYear, p.DeathMonth, p.DeathDay),
+            PrimaryPhotoUrl = p.PrimaryPhotoId.HasValue ? ImageHelper.BuildPhotoUrl(baseUrl, result.Id, p.Id, p.PrimaryPhotoId.Value) : null
+        }).ToList();
+
+        return Ok(new FamilyTreeDetailModel
+        {
+            Id = result.Id,
+            Name = result.Name,
+            Description = result.Description,
+            CreatedAt = result.CreatedAt,
+            UpdatedAt = result.UpdatedAt,
+            PersonCount = result.PersonCount,
+            YearRange = yearRange,
+            Persons = persons,
+            Relationships = [],
+            HasMore = hasMore
         });
     }
 

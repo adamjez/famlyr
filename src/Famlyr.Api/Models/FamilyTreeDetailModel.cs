@@ -11,4 +11,5 @@ public class FamilyTreeDetailModel
     public YearRangeModel? YearRange { get; init; }
     public required IReadOnlyList<PersonModel> Persons { get; init; }
     public required IReadOnlyList<RelationshipModel> Relationships { get; init; }
+    public bool HasMore { get; init; }
 }
